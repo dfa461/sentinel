@@ -14,6 +14,9 @@ from xdk import Client as XClient
 import httpx
 import PyPDF2
 import io
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from .rl_assessment import router as rl_router
 from .github_extractor import GitHubExtractor
 
@@ -42,6 +45,14 @@ X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN")
 # GitHub API configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
+# Email configuration
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME")  # Your email address
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")  # Your email password or app password
+FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USERNAME)
+FROM_NAME = os.getenv("FROM_NAME", "Sentinel Assessment")
+
 # Create global xAI client
 xai_client = AsyncClient(api_key=GROK_API_KEY)
 
@@ -54,7 +65,7 @@ if X_BEARER_TOKEN:
 github_extractor = GitHubExtractor(GITHUB_TOKEN) if GITHUB_TOKEN else None
 
 # In-memory storage for candidates
-pending_candidates_db: Dict[str, Any] = {"DEBUG": {}}  # username -> candidate data
+pending_candidates_db: Dict[str, Any] = {}  # username -> candidate data
 assessed_candidates_db: Dict[str, Any] = {}  # username -> assessment data
 assessment_tokens_db: Dict[str, str] = {}  # token -> username mapping
 
@@ -603,6 +614,42 @@ class SendAssessmentRequest(BaseModel):
     email: str
 
 
+def send_email(to_email: str, subject: str, html_body: str, text_body: str = None) -> bool:
+    """Send an email using SMTP"""
+
+    if not SMTP_USERNAME or not SMTP_PASSWORD:
+        print("[Email] SMTP credentials not configured. Email not sent.")
+        return False
+
+    try:
+        # Create message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = f"{FROM_NAME} <{FROM_EMAIL}>"
+        msg['To'] = to_email
+
+        # Add text and HTML parts
+        if text_body:
+            part1 = MIMEText(text_body, 'plain')
+            msg.attach(part1)
+
+        part2 = MIMEText(html_body, 'html')
+        msg.attach(part2)
+
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()  # Upgrade to secure connection
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+
+        print(f"[Email] Successfully sent email to {to_email}")
+        return True
+
+    except Exception as e:
+        print(f"[Email] Failed to send email to {to_email}: {e}")
+        return False
+
+
 @app.post("/send-assessment")
 async def send_assessment_email(request: SendAssessmentRequest):
     """Send assessment link to candidate via email"""
@@ -613,27 +660,157 @@ async def send_assessment_email(request: SendAssessmentRequest):
 
     # Create unique assessment link
     assessment_link = f"http://localhost:5173/assessment/{assessment_token}"
-    recipient_email = "frankg0485@gmail.com"  # Always send to this email for testing
+
+    # Use the provided email or fall back to test email
+    # recipient_email = request.email when we actually want to send emails to candidates
+    recipient_email = "devamshri@gmail.com"
 
     # Update candidate with assessment token
     if request.username in pending_candidates_db:
         pending_candidates_db[request.username]['assessment_token'] = assessment_token
         pending_candidates_db[request.username]['assessment_link'] = assessment_link
 
-    print(f"[Email] Would send assessment for @{request.username} (candidate email: {request.email})")
-    print(f"[Email] Actually sending to: {recipient_email}")
+    print(f"[Email] Sending assessment for @{request.username}")
+    print(f"[Email] Recipient: {recipient_email}")
     print(f"[Email] Unique link: {assessment_link}")
     print(f"[Email] Token: {assessment_token}")
 
-    # TODO: Integrate with actual email service
-    # Email body would include: Hi {username}, please complete your assessment at {assessment_link}
+    # Create email content
+    subject = "Complete Your Sentinel Technical Assessment"
+
+    # HTML email body
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 10px 10px 0 0;
+                text-align: center;
+            }}
+            .content {{
+                background: #f8f9fa;
+                padding: 30px;
+                border-radius: 0 0 10px 10px;
+            }}
+            .button {{
+                display: inline-block;
+                padding: 15px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: bold;
+                margin: 20px 0;
+            }}
+            .footer {{
+                text-align: center;
+                color: #6c757d;
+                font-size: 12px;
+                margin-top: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🛡️ Sentinel Assessment</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>@{request.username}</strong>,</p>
+
+            <p>Thank you for your interest! We're excited to invite you to complete your technical assessment on the Sentinel platform.</p>
+
+            <p><strong>What to expect:</strong></p>
+            <ul>
+                <li>📝 Interactive coding challenges</li>
+                <li>🤖 AI-powered assistance and hints</li>
+                <li>💡 Adaptive follow-up questions</li>
+                <li>⏱️ Approximately 45-60 minutes</li>
+            </ul>
+
+            <p>Click the button below to begin your assessment:</p>
+
+            <div style="text-align: center;">
+                <a href="{assessment_link}" class="button">Start Assessment</a>
+            </div>
+
+            <p style="font-size: 12px; color: #6c757d; margin-top: 30px;">
+                Or copy and paste this link into your browser:<br>
+                <code>{assessment_link}</code>
+            </p>
+
+            <p><strong>Tips for success:</strong></p>
+            <ul>
+                <li>Use a desktop or laptop for the best experience</li>
+                <li>Ensure stable internet connection</li>
+                <li>Find a quiet environment to focus</li>
+                <li>Don't hesitate to ask for hints if you're stuck</li>
+            </ul>
+
+            <p>Good luck! We're looking forward to seeing your problem-solving skills in action.</p>
+
+            <p>Best regards,<br><strong>The Sentinel Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>This assessment link is unique to you. Please do not share it.</p>
+            <p>Powered by xAI Grok • Built for the future of technical hiring</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Plain text fallback
+    text_body = f"""
+    Hi @{request.username},
+
+    Thank you for your interest! We're excited to invite you to complete your technical assessment on the Sentinel platform.
+
+    What to expect:
+    - Interactive coding challenges
+    - AI-powered assistance and hints
+    - Adaptive follow-up questions
+    - Approximately 45-60 minutes
+
+    Start your assessment here:
+    {assessment_link}
+
+    Tips for success:
+    - Use a desktop or laptop for the best experience
+    - Ensure stable internet connection
+    - Find a quiet environment to focus
+    - Don't hesitate to ask for hints if you're stuck
+
+    Good luck! We're looking forward to seeing your problem-solving skills in action.
+
+    Best regards,
+    The Sentinel Team
+
+    ---
+    This assessment link is unique to you. Please do not share it.
+    Powered by xAI Grok • Built for the future of technical hiring
+    """
+
+    # Send the email
+    email_sent = send_email(recipient_email, subject, html_body, text_body)
 
     return {
-        "success": True,
-        "message": f"Assessment link sent to {recipient_email}",
+        "success": email_sent,
+        "message": f"Assessment link {'sent' if email_sent else 'generated but not sent'} to {recipient_email}",
         "assessment_link": assessment_link,
         "assessment_token": assessment_token,
-        "candidate_username": request.username
+        "candidate_username": request.username,
+        "email_configured": bool(SMTP_USERNAME and SMTP_PASSWORD)
     }
 
 
@@ -842,6 +1019,8 @@ async def health_check():
         "status": "healthy",
         "grok_api_configured": bool(GROK_API_KEY),
         "x_api_configured": bool(X_BEARER_TOKEN),
+        "email_configured": bool(SMTP_USERNAME and SMTP_PASSWORD),
+        "smtp_server": SMTP_SERVER if SMTP_USERNAME else None,
     }
 
 

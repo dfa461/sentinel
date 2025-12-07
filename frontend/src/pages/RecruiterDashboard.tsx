@@ -9,10 +9,10 @@ const RL_API_BASE = 'http://localhost:8000/api/rl';
 
 interface PendingCandidate {
   username: string;
-  post_text: string;
-  post_url: string;
-  github_links: string[];
-  relevance_score: number | null;
+  post_text?: string;
+  post_url?: string;
+  github_links?: string[];
+  relevance_score?: number | null;
   social_media?: {
     email?: string;
     twitter?: string;
@@ -1013,12 +1013,6 @@ export function RecruiterDashboard() {
                 <Search className="w-4 h-4" />
                 Discover Candidates
               </button>
-              <button
-                onClick={() => navigate('/interactive')}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
-              >
-                Start Assessment
-              </button>
             </div>
           </div>
         ) : (
@@ -1056,23 +1050,25 @@ export function RecruiterDashboard() {
                       )}
                     </div>
 
-                    <p className="text-sm text-slate-400 mb-3">{candidate.post_text}</p>
+                    <p className="text-sm text-slate-400 mb-3">{candidate.post_text || 'No description available'}</p>
 
                     {/* GitHub Links */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {candidate.github_links.map((link, linkIdx) => (
-                        <a
-                          key={linkIdx}
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-full border border-slate-700 transition-colors"
-                        >
-                          <Github className="w-3 h-3" />
-                          {link.replace('https://github.com/', '')}
-                        </a>
-                      ))}
-                    </div>
+                    {candidate.github_links && candidate.github_links.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {candidate.github_links.map((link, linkIdx) => (
+                          <a
+                            key={linkIdx}
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-full border border-slate-700 transition-colors"
+                          >
+                            <Github className="w-3 h-3" />
+                            {link.replace('https://github.com/', '')}
+                          </a>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Social Media Info */}
                     {candidate.social_media && (
