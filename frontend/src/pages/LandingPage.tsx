@@ -5,7 +5,6 @@ import {
   Code2,
   Brain,
   TrendingUp,
-  Sparkles,
   Target,
   Zap,
   BarChart3,
@@ -22,6 +21,23 @@ import {
 import { cn } from '../lib/utils';
 import { CandidateInfoModal } from '../components/CandidateInfoModal';
 import type { CandidateInfo } from '../components/CandidateInfoModal';
+
+// xAI Logo SVG Component
+const XAILogo = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 841.89 595.28"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="currentColor"
+  >
+    <g>
+      <polygon points="557.09,211.99 565.4,538.36 631.96,538.36 640.28,93.18" />
+      <polygon points="640.28,56.91 538.72,56.91 379.35,284.53 430.13,357.05" />
+      <polygon points="201.61,538.36 303.17,538.36 353.96,465.84 303.17,393.31" />
+      <polygon points="201.61,211.99 430.13,538.36 531.69,538.36 303.17,211.99" />
+    </g>
+  </svg>
+);
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -127,7 +143,7 @@ export function LandingPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-effect border border-blue-500/30 mb-6"
           >
-            <Sparkles className="w-4 h-4 text-yellow-400" />
+            <XAILogo className="w-4 h-4 text-white" />
             <span className="text-sm text-slate-300">Powered by Grok AI + Reinforcement Learning</span>
           </motion.div>
 
@@ -442,7 +458,7 @@ export function LandingPage() {
             </div>
 
             <div className="flex items-center gap-2 text-slate-400 text-sm">
-              <Sparkles className="w-4 h-4 text-yellow-400" />
+              <XAILogo className="w-4 h-4 text-white" />
               <span>Built for xAI Hackathon</span>
             </div>
           </div>
