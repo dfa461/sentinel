@@ -12,6 +12,7 @@ from xai_sdk.chat import user, system
 from xdk import Client as XClient
 import httpx
 from .rl_assessment import router as rl_router
+from .github_extractor import GitHubExtractor
 
 load_dotenv()
 
@@ -35,6 +36,9 @@ GROK_API_KEY = os.getenv("GROK_API_KEY")
 # X API configuration
 X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN")
 
+# GitHub API configuration
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
 # Create global xAI client
 xai_client = AsyncClient(api_key=GROK_API_KEY)
 
@@ -42,6 +46,9 @@ xai_client = AsyncClient(api_key=GROK_API_KEY)
 x_client = None
 if X_BEARER_TOKEN:
     x_client = XClient(bearer_token=X_BEARER_TOKEN)
+
+# Create GitHub extractor
+github_extractor = GitHubExtractor(GITHUB_TOKEN) if GITHUB_TOKEN else None
 
 
 # Models removed - no longer needed since AssessmentPage was removed
@@ -53,12 +60,23 @@ class RoleSearchRequest(BaseModel):
     max_results: Optional[int] = 10
 
 
+class SocialMedia(BaseModel):
+    email: Optional[str] = None
+    twitter: Optional[str] = None
+    blog: Optional[str] = None
+    company: Optional[str] = None
+    location: Optional[str] = None
+    github_bio: Optional[str] = None
+
+
 class CandidatePost(BaseModel):
     username: str
     post_text: str
     post_url: str
     github_links: List[str]
     relevance_score: Optional[float] = None
+    social_media: Optional[SocialMedia] = None
+    status: str = "pending"  # "pending" or "assessed"
 
 
 async def expand_short_url(short_url: str) -> str:
@@ -320,10 +338,19 @@ Make search_queries diverse and progressively broader. Include both formal (e.g.
         print(f"[Stage 3] Fetching user bios...")
 
         usernames_to_lookup = list(discovered_users.keys())
-        if usernames_to_lookup:
+
+        # Batch requests (X API limit is 100 usernames per request)
+        BATCH_SIZE = 100
+        total_enriched = 0
+
+        for i in range(0, len(usernames_to_lookup), BATCH_SIZE):
+            batch = usernames_to_lookup[i:i + BATCH_SIZE]
+
             try:
+                print(f"[Stage 3] Fetching batch {i//BATCH_SIZE + 1} ({len(batch)} users)...")
+
                 users_response = x_client.users.get_by_usernames(
-                    usernames=usernames_to_lookup,
+                    usernames=batch,
                     user_fields=["description", "url", "public_metrics"]
                 )
 
@@ -339,10 +366,13 @@ Make search_queries diverse and progressively broader. Include both formal (e.g.
                         for gh_user in bio_github:
                             discovered_users[username]['github_links'].add(f"https://github.com/{gh_user}")
 
-                print(f"[Stage 3] Enriched {len(usernames_to_lookup)} user profiles with bios")
+                        total_enriched += 1
 
             except Exception as e:
-                print(f"[Stage 3] Error fetching bios: {e}")
+                print(f"[Stage 3] Error fetching batch {i//BATCH_SIZE + 1}: {e}")
+                continue
+
+        print(f"[Stage 3] Enriched {total_enriched} user profiles with bios")
 
         # Filter: Only keep users with GitHub links
         candidates_with_github = {
@@ -412,6 +442,31 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
             except Exception as e:
                 print(f"[Stage 4] Error ranking with Grok: {e}")
 
+        # Stage 4.5: Enrich with GitHub profile data (email, Twitter, etc.)
+        print(f"[Stage 4.5] Enriching with GitHub profile data...")
+
+        if github_extractor:
+            for username, data in candidates_with_github.items():
+                # Extract GitHub username from first GitHub link
+                github_usernames = []
+                for gh_link in list(data['github_links'])[:3]:  # Check first 3 links
+                    # Extract username from github.com/username or github.com/username/repo
+                    match = re.search(r'github\.com/([^/\s]+)', gh_link)
+                    if match:
+                        github_usernames.append(match.group(1))
+
+                # Try to get GitHub profile info for each username
+                for gh_user in github_usernames:
+                    try:
+                        gh_profile = github_extractor.get_user_details(gh_user)
+                        if gh_profile:
+                            data['github_profile'] = github_extractor.extract_user_info(gh_profile)
+                            print(f"[Stage 4.5] @{username} -> GitHub: {gh_user} (email: {data['github_profile'].get('email', 'N/A')})")
+                            break  # Stop after first successful profile
+                    except Exception as e:
+                        print(f"[Stage 4.5] Error fetching GitHub profile for {gh_user}: {e}")
+                        continue
+
         # Format final results
         results = []
         sorted_candidates = sorted(
@@ -424,12 +479,27 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
             # Pick the best post to show
             best_post = data['posts'][0] if data['posts'] else {'text': '', 'id': ''}
 
+            # Build social media object from GitHub profile
+            social_media = None
+            if data.get('github_profile'):
+                gh_prof = data['github_profile']
+                social_media = SocialMedia(
+                    email=gh_prof.get('email'),
+                    twitter=gh_prof.get('twitter'),
+                    blog=gh_prof.get('blog'),
+                    company=gh_prof.get('company'),
+                    location=gh_prof.get('location'),
+                    github_bio=gh_prof.get('bio')
+                )
+
             results.append(CandidatePost(
                 username=username,
                 post_text=best_post['text'],
                 post_url=f"https://x.com/{username}",
                 github_links=list(data['github_links']),
-                relevance_score=data.get('relevance_score')
+                relevance_score=data.get('relevance_score'),
+                social_media=social_media,
+                status="pending"
             ))
 
         return {

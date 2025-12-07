@@ -192,14 +192,6 @@ export function LandingPage() {
             </button>
 
             <button
-              onClick={() => navigate('/search')}
-              className="px-8 py-4 glass-effect border border-slate-700 hover:border-green-500 text-white rounded-xl font-semibold text-lg transition-all flex items-center gap-3"
-            >
-              <Target className="w-6 h-6" />
-              Discover Candidates
-            </button>
-
-            <button
               onClick={() => navigate('/results/demo')}
               className="px-8 py-4 glass-effect border border-slate-700 hover:border-blue-500 text-white rounded-xl font-semibold text-lg transition-all flex items-center gap-3"
             >

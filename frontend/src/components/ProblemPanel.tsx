@@ -1,4 +1,5 @@
 import { BookOpen, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import type { Problem } from '../types';
 
 interface ProblemPanelProps {
@@ -36,9 +37,27 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
       {/* Description */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <div className="prose prose-invert prose-slate max-w-none">
-          <div className="text-slate-300 leading-relaxed whitespace-pre-wrap">
+          <ReactMarkdown
+            components={{
+              h2: ({ children }) => (
+                <h2 className="text-lg font-bold text-white mt-4 mb-2">{children}</h2>
+              ),
+              ul: ({ children }) => (
+                <ul className="list-disc list-inside space-y-1 text-slate-300 my-2">{children}</ul>
+              ),
+              li: ({ children }) => (
+                <li className="text-slate-300">{children}</li>
+              ),
+              p: ({ children }) => (
+                <p className="text-slate-300 leading-relaxed mb-3">{children}</p>
+              ),
+              strong: ({ children }) => (
+                <strong className="font-semibold text-white">{children}</strong>
+              ),
+            }}
+          >
             {problem.description}
-          </div>
+          </ReactMarkdown>
         </div>
 
         {/* Test Cases */}

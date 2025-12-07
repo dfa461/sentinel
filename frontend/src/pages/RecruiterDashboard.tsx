@@ -1,10 +1,28 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, BarChart3, Brain, Zap, Trash2, ThumbsUp, ThumbsDown, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, BarChart3, Brain, Zap, Trash2, ThumbsUp, ThumbsDown, CheckCircle2, Circle, Search, Mail, Twitter, Globe, MapPin, Building2, Github } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { CandidateSearchModal } from '../components/CandidateSearchModal';
 
 const RL_API_BASE = 'http://localhost:8000/api/rl';
+
+interface PendingCandidate {
+  username: string;
+  post_text: string;
+  post_url: string;
+  github_links: string[];
+  relevance_score: number | null;
+  social_media?: {
+    email?: string;
+    twitter?: string;
+    blog?: string;
+    company?: string;
+    location?: string;
+    github_bio?: string;
+  };
+  status: string;
+}
 
 // Helper function to get color based on recommendation
 const getRecommendationColor = (recommendation: string): string => {
@@ -40,6 +58,7 @@ interface Assessment {
 export function RecruiterDashboard() {
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Assessment[]>([]);
+  const [pendingCandidates, setPendingCandidates] = useState<PendingCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState<Assessment | null>(null);
   const [activeTab, setActiveTab] = useState<'Overview' | 'Code' | 'Responses' | 'Analytics' | 'AI Evaluation'>('Overview');
@@ -50,6 +69,9 @@ export function RecruiterDashboard() {
   const [topK, setTopK] = useState('All');
   const [detailedData, setDetailedData] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [showPending, setShowPending] = useState(true);
+  const [showAssessed, setShowAssessed] = useState(true);
 
   // Fetch assessments from backend
   useEffect(() => {
@@ -100,6 +122,10 @@ export function RecruiterDashboard() {
   const handleResponseWeightChange = (value: number) => {
     setResponseWeight(value);
     setCodeWeight(100 - value);
+  };
+
+  const handleCandidatesFound = (newCandidates: PendingCandidate[]) => {
+    setPendingCandidates((prev) => [...newCandidates, ...prev]);
   };
 
   // Calculate weighted scores dynamically
@@ -819,9 +845,18 @@ export function RecruiterDashboard() {
             className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity group"
           >
             <img src="/sentinel-logo.png" alt="Sentinel" className="w-14 h-14 group-hover:scale-105 transition-transform" />
-            <span className="text-xl font-bold">Sentinel</span>
+            <span className="text-xl font-bold">Sentinel Dashboard</span>
           </button>
-          <h1 className="text-lg font-semibold text-slate-300">Recruiter Dashboard</h1>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSearchModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-green-500/50"
+            >
+              <Search className="w-4 h-4" />
+              Discover Candidates
+            </button>
+          </div>
         </div>
       </div>
 
@@ -918,23 +953,164 @@ export function RecruiterDashboard() {
         </div>
       </div>
 
+      {/* Candidate Type Filters */}
+      <div className="max-w-7xl mx-auto px-8 pt-6">
+        <div className="flex items-center gap-4 mb-2">
+          <button
+            onClick={() => setShowPending(!showPending)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all",
+              showPending
+                ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                : "bg-slate-800 text-slate-500 border border-slate-700"
+            )}
+          >
+            <Circle className="w-4 h-4" />
+            Pending ({pendingCandidates.length})
+          </button>
+          <button
+            onClick={() => setShowAssessed(!showAssessed)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all",
+              showAssessed
+                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                : "bg-slate-800 text-slate-500 border border-slate-700"
+            )}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            Assessed ({candidatesWithWeightedScores.length})
+          </button>
+        </div>
+      </div>
+
       {/* Candidate List */}
       <div className="max-w-7xl mx-auto p-8">
-        {candidatesWithWeightedScores.length === 0 ? (
+        {pendingCandidates.length === 0 && candidatesWithWeightedScores.length === 0 ? (
           <div className="text-center py-20">
             <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-300 mb-2">No Assessments Yet</h2>
-            <p className="text-slate-500 mb-6">Complete an assessment to see results here</p>
-            <button
-              onClick={() => navigate('/interactive')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
-            >
-              Start Assessment
-            </button>
+            <h2 className="text-2xl font-bold text-slate-300 mb-2">No Candidates Yet</h2>
+            <p className="text-slate-500 mb-6">Discover candidates or complete an assessment</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                Discover Candidates
+              </button>
+              <button
+                onClick={() => navigate('/interactive')}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
+              >
+                Start Assessment
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
-            {candidatesWithWeightedScores.map((candidate, idx) => (
+            {/* Pending Candidates */}
+            {showPending && pendingCandidates.map((candidate, idx) => (
+              <div
+                key={`pending-${candidate.username}`}
+                className="bg-[#1a1a1a] rounded-xl p-6 border border-yellow-500/30 hover:border-yellow-500/50 transition-all"
+              >
+                <div className="flex items-start gap-6">
+                  {/* Status Badge */}
+                  <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <Circle className="w-6 h-6 text-yellow-400" />
+                  </div>
+
+                  {/* Candidate Info */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <a
+                        href={candidate.post_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-lg font-bold text-white hover:text-blue-400 transition-colors"
+                      >
+                        @{candidate.username}
+                      </a>
+                      <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full border border-yellow-500/30">
+                        PENDING
+                      </span>
+                      {candidate.relevance_score && (
+                        <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-semibold rounded-full border border-blue-500/30">
+                          Match: {candidate.relevance_score.toFixed(1)}/10
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-slate-400 mb-3">{candidate.post_text}</p>
+
+                    {/* GitHub Links */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {candidate.github_links.map((link, linkIdx) => (
+                        <a
+                          key={linkIdx}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-full border border-slate-700 transition-colors"
+                        >
+                          <Github className="w-3 h-3" />
+                          {link.replace('https://github.com/', '')}
+                        </a>
+                      ))}
+                    </div>
+
+                    {/* Social Media Info */}
+                    {candidate.social_media && (
+                      <div className="flex flex-wrap gap-4 text-xs text-slate-400">
+                        {candidate.social_media.email && (
+                          <div className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {candidate.social_media.email}
+                          </div>
+                        )}
+                        {candidate.social_media.twitter && (
+                          <a
+                            href={`https://twitter.com/${candidate.social_media.twitter}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-blue-400 transition-colors"
+                          >
+                            <Twitter className="w-3 h-3" />
+                            @{candidate.social_media.twitter}
+                          </a>
+                        )}
+                        {candidate.social_media.company && (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" />
+                            {candidate.social_media.company}
+                          </div>
+                        )}
+                        {candidate.social_media.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {candidate.social_media.location}
+                          </div>
+                        )}
+                        {candidate.social_media.blog && (
+                          <a
+                            href={candidate.social_media.blog}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-blue-400 transition-colors"
+                          >
+                            <Globe className="w-3 h-3" />
+                            {candidate.social_media.blog.replace('https://', '').replace('http://', '')}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Assessed Candidates */}
+            {showAssessed && candidatesWithWeightedScores.map((candidate, idx) => (
           <div
             key={candidate.id}
             onClick={() => setSelectedCandidate(candidate)}
@@ -988,6 +1164,13 @@ export function RecruiterDashboard() {
           </div>
         )}
       </div>
+
+      {/* Candidate Search Modal */}
+      <CandidateSearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        onCandidatesFound={handleCandidatesFound}
+      />
     </div>
   );
 }
