@@ -14,6 +14,7 @@ import time
 import re
 import random
 import uuid
+import shutil
 from xai_sdk import AsyncClient
 from xai_sdk.chat import user, system
 
@@ -161,7 +162,7 @@ class RLSessionStepRequest(BaseModel):
 async def call_grok_api(
     messages: List[Dict[str, str]],
     temperature: float = 0.7,
-    model: str = "grok-4.1"
+    model: str = "grok-4-1-fast-reasoning"
 ) -> str:
     """Call Grok API with the given messages"""
     if not GROK_API_KEY:
@@ -466,7 +467,7 @@ async def generate_targeted_hint(
     policy_metrics: Dict[str, float]
 ) -> Dict[str, Any]:
     """
-    Route to Grok 4.1 with an action-specific prompt so we can personalize hints and follow-ups.
+    Route to Grok with an action-specific prompt so we can personalize hints and follow-ups.
     """
     focus_map = {
         "debug_followup": "Debug the most recent failing run. Suggest a minimal experiment to surface the bug quickly.",
@@ -521,7 +522,7 @@ Respond ONLY with JSON:
         response = await call_grok_api(
             [{"role": "user", "content": hint_prompt}],
             temperature=0.45,
-            model="grok-4.1"
+            model="grok-4-1-fast-reasoning"
         )
 
         json_start = response.find("{")
@@ -1020,7 +1021,7 @@ if __name__ == "__main__":
             # Remove spaces after commas, but preserve other formatting
             normalized = re.sub(r',\s+', ',', s.strip())
             return normalized
-        
+
         # Compare normalized outputs
         passed = normalize_output(actual_output) == normalize_output(test_case.output)
 
@@ -1047,14 +1048,213 @@ if __name__ == "__main__":
         os.unlink(temp_file)
 
 
+def parse_java_test_input(test_input: str) -> str:
+    """
+    Parse test input and convert to valid Java syntax.
+    Converts: nums = [1,1,1,2,2,3], k = 2
+    To: new int[]{1,1,1,2,2,3}, 2
+    """
+    # Split by comma but respect array brackets
+    parts = []
+    current = ""
+    bracket_depth = 0
+
+    for char in test_input:
+        if char == '[':
+            bracket_depth += 1
+            current += char
+        elif char == ']':
+            bracket_depth -= 1
+            current += char
+        elif char == ',' and bracket_depth == 0:
+            parts.append(current.strip())
+            current = ""
+        else:
+            current += char
+
+    if current.strip():
+        parts.append(current.strip())
+
+    # Process each part
+    java_args = []
+    for part in parts:
+        # Check if it's a variable assignment (e.g., "nums = [1,2,3]")
+        if '=' in part:
+            var_name, value = part.split('=', 1)
+            var_name = var_name.strip()
+            value = value.strip()
+
+            # Convert array notation
+            if value.startswith('[') and value.endswith(']'):
+                # Extract array elements
+                array_content = value[1:-1].strip()
+                java_args.append(f"new int[]{{{array_content}}}")
+            else:
+                # Regular value (int, string, etc.)
+                java_args.append(value)
+        else:
+            # No assignment, just use the value
+            java_args.append(part.strip())
+
+    return ", ".join(java_args)
+
+
+async def execute_java_code(code: str, test_case: TestCase) -> TestResult:
+    """Execute Java code with test case input"""
+
+    # Extract method name from the code (look for public type methodName pattern)
+    method_match = re.search(r'public\s+\w+(?:\[\])?\s+(\w+)\s*\(', code)
+    if not method_match:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find a public method definition in the code"
+        )
+
+    method_name = method_match.group(1)
+
+    # Parse test input to Java syntax
+    java_input = parse_java_test_input(test_case.input)
+
+    # Remove the closing brace from the user's code to add main method
+    code_lines = code.strip().split('\n')
+
+    # Find the last closing brace (should be the class closing brace)
+    last_brace_idx = -1
+    for i in range(len(code_lines) - 1, -1, -1):
+        if code_lines[i].strip() == '}':
+            last_brace_idx = i
+            break
+
+    if last_brace_idx == -1:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find class closing brace in the code"
+        )
+
+    # Insert main method before the last closing brace
+    main_method = """
+    public static void main(String[] args) {
+        Solution solution = new Solution();
+        Object result = solution.METHOD_NAME(ARGS);
+
+        // Handle array output
+        if (result instanceof int[]) {
+            int[] arr = (int[]) result;
+            System.out.print("[");
+            for (int i = 0; i < arr.length; i++) {
+                System.out.print(arr[i]);
+                if (i < arr.length - 1) System.out.print(",");
+            }
+            System.out.print("]");
+        } else {
+            System.out.print(result);
+        }
+    }
+"""
+
+    main_method = main_method.replace("METHOD_NAME", method_name).replace("ARGS", java_input)
+
+    # Reconstruct the code with main method
+    wrapped_lines = code_lines[:last_brace_idx] + [main_method] + code_lines[last_brace_idx:]
+    wrapped_code = '\n'.join(wrapped_lines)
+
+    # Create a temporary directory for Java files
+    temp_dir = tempfile.mkdtemp()
+    java_file = os.path.join(temp_dir, "Solution.java")
+
+    try:
+        # Write the Java code to file
+        with open(java_file, 'w') as f:
+            f.write(wrapped_code)
+
+        # Debug: print the wrapped code
+        print(f"[DEBUG] Wrapped Java code:\n{wrapped_code}\n")
+
+        # Compile Java code
+        compile_process = subprocess.run(
+            ['javac', java_file],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if compile_process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=f"Compilation error:\n{compile_process.stderr}\n\nGenerated code:\n{wrapped_code}",
+                stderr=compile_process.stderr
+            )
+
+        # Execute compiled Java code
+        execute_process = subprocess.run(
+            ['java', '-cp', temp_dir, 'Solution'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        stdout = execute_process.stdout
+        stderr = execute_process.stderr
+
+        # Get output
+        output_lines = stdout.strip().split('\n') if stdout.strip() else []
+        actual_output = output_lines[-1] if output_lines else ""
+        console_output = '\n'.join(output_lines[:-1]) if len(output_lines) > 1 else ""
+
+        if execute_process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=stderr or "Execution failed",
+                stdout=console_output
+            )
+
+        # Normalize output for comparison
+        def normalize_output(s: str) -> str:
+            normalized = re.sub(r',\s+', ',', s.strip())
+            return normalized
+
+        passed = normalize_output(actual_output) == normalize_output(test_case.output)
+
+        return TestResult(
+            passed=passed,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            actualOutput=actual_output,
+            stdout=console_output,
+            stderr=stderr
+        )
+
+    except subprocess.TimeoutExpired:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Execution timeout (5 seconds)",
+            stdout="",
+            stderr=""
+        )
+    finally:
+        # Clean up temp files
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 @router.post("/execute-code")
 async def execute_code(request: CodeExecutionRequest):
     """
-    Execute Python code against test cases in a sandboxed environment.
+    Execute code against test cases in a sandboxed environment.
+    Supports Python and Java.
     """
 
-    if request.language != "python":
-        raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}. Only Python is supported.")
+    if request.language not in ["python", "java"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}. Supported languages: python, java")
 
     results = []
     passed_count = 0
@@ -1063,7 +1263,11 @@ async def execute_code(request: CodeExecutionRequest):
         try:
             start_time = time.time()
 
-            result = await execute_python_code(request.code, test_case)
+            # Execute based on language
+            if request.language == "python":
+                result = await execute_python_code(request.code, test_case)
+            else:  # java
+                result = await execute_java_code(request.code, test_case)
 
             execution_time = time.time() - start_time
             result.executionTime = execution_time
