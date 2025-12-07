@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, Sparkles, TrendingUp, X } from 'lucide-react';
+import { Lightbulb, Sparkles, TrendingUp, X, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { AdaptiveHint } from '../types/monitoring';
 
@@ -10,6 +10,7 @@ interface HintSystemProps {
   onDismiss: () => void;
   onRequestHint: () => void;
   canRequestHint: boolean;
+  isRequestingHint?: boolean;
 }
 
 export function HintSystem({
@@ -19,51 +20,31 @@ export function HintSystem({
   onDismiss,
   onRequestHint,
   canRequestHint,
+  isRequestingHint = false,
 }: HintSystemProps) {
   return (
     <>
-      {/* Hint Quota Display - Always visible */}
-      <div className="fixed top-24 right-6 z-40">
+      {/* Hint Request Display - Always visible */}
+      <div className="fixed top-24 right-6 z-40 w-80">
         <div className="glass-effect rounded-xl p-4 border border-slate-700 shadow-xl">
           <div className="flex items-center gap-3 mb-2">
             <Lightbulb className="w-5 h-5 text-yellow-400" />
             <span className="text-sm font-semibold text-slate-200">
-              Hints Available
+              AI Hints
             </span>
           </div>
-          <div className="flex gap-2">
-            {[...Array(3)].map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-all",
-                  i < hintsRemaining
-                    ? "bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500/50"
-                    : "bg-slate-700/50 text-slate-500 border-2 border-slate-600/50"
-                )}
-              >
-                {i < hintsRemaining ? (
-                  <Lightbulb className="w-4 h-4" />
-                ) : (
-                  <X className="w-4 h-4" />
-                )}
-              </div>
-            ))}
-          </div>
 
-          {canRequestHint && hintsRemaining > 0 && (
+          {canRequestHint && (
             <button
               onClick={onRequestHint}
-              className="mt-3 w-full py-2 px-4 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white text-sm font-semibold rounded-lg transition-all shadow-lg hover:shadow-yellow-500/50"
+              disabled={isRequestingHint}
+              className="w-full py-2 px-4 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white text-sm font-semibold rounded-lg transition-all shadow-lg hover:shadow-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Request Hint
+              {isRequestingHint && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              {isRequestingHint ? 'Generating Hint...' : 'Request Hint'}
             </button>
-          )}
-
-          {hintsRemaining === 0 && (
-            <p className="mt-3 text-xs text-slate-400 text-center">
-              No hints remaining
-            </p>
           )}
         </div>
 
@@ -83,10 +64,10 @@ export function HintSystem({
                   className="bg-slate-800/50 rounded-lg p-2 border border-slate-700"
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-xs font-bold text-yellow-400">
+                    <span className="text-xs font-bold text-yellow-400 flex-shrink-0">
                       #{idx + 1}
                     </span>
-                    <p className="text-xs text-slate-300 flex-1">
+                    <p className="text-xs text-slate-300 flex-1 break-words">
                       {hint.content}
                     </p>
                   </div>

@@ -49,7 +49,7 @@ export function InteractiveAssessmentPage() {
   // Hint system states
   const [hintsUsed, setHintsUsed] = useState<AdaptiveHint[]>([]);
   const [currentAdaptiveHint, setCurrentAdaptiveHint] = useState<AdaptiveHint | null>(null);
-  const [hintsRemaining, setHintsRemaining] = useState(3);
+  const [isRequestingHint, setIsRequestingHint] = useState(false);
 
   // Execution states
   const [lastExecutionResult, setLastExecutionResult] = useState<CodeExecutionResult | null>(null);
@@ -63,7 +63,7 @@ export function InteractiveAssessmentPage() {
     lastChangeTimestamp: Date.now(),
     totalChanges: 0,
     consecutiveFailures: 0,
-    hintsRemaining: 3,
+    hintsRemaining: 999, // Effectively unlimited
   });
 
   // Monitoring states
@@ -148,7 +148,6 @@ export function InteractiveAssessmentPage() {
 
       if (
         timeSinceLastChange >= NO_PROGRESS_THRESHOLD &&
-        hintsRemaining > 0 &&
         !currentAdaptiveHint
       ) {
         handleNoProgressDetected();
@@ -160,7 +159,7 @@ export function InteractiveAssessmentPage() {
         clearInterval(noProgressCheckIntervalRef.current);
       }
     };
-  }, [progressMetrics.lastChangeTimestamp, hintsRemaining, currentAdaptiveHint]);
+  }, [progressMetrics.lastChangeTimestamp, currentAdaptiveHint]);
 
   const handlePauseDetected = async (pauseDuration: number) => {
     console.log('Pause detected:', pauseDuration, 'seconds');
@@ -335,11 +334,7 @@ export function InteractiveAssessmentPage() {
   };
 
   const requestHint = async (context: string = 'manual_request') => {
-    if (hintsRemaining <= 0) {
-      alert('No hints remaining!');
-      return;
-    }
-
+    setIsRequestingHint(true);
     try {
       const response = await fetch(`${RL_API_BASE}/generate-adaptive-hint`, {
         method: 'POST',
@@ -366,13 +361,6 @@ export function InteractiveAssessmentPage() {
 
         setHintsUsed((prev) => [...prev, hint]);
         setCurrentAdaptiveHint(hint);
-        setHintsRemaining((prev) => prev - 1);
-
-        // Update metrics
-        setProgressMetrics((prev) => ({
-          ...prev,
-          hintsRemaining: prev.hintsRemaining - 1,
-        }));
 
         // Record RL signal
         const rlSignal: RLFeedbackSignal = {
@@ -390,6 +378,8 @@ export function InteractiveAssessmentPage() {
       }
     } catch (error) {
       console.error('Error requesting hint:', error);
+    } finally {
+      setIsRequestingHint(false);
     }
   };
 
@@ -420,7 +410,7 @@ export function InteractiveAssessmentPage() {
           }));
 
           // After 2-3 failures, suggest hint
-          if (progressMetrics.consecutiveFailures >= 2 && hintsRemaining > 0) {
+          if (progressMetrics.consecutiveFailures >= 2) {
             setTimeout(() => {
               if (confirm('You\'ve had a few failed attempts. Would you like a hint?')) {
                 requestHint('execution_failures');
@@ -577,11 +567,12 @@ export function InteractiveAssessmentPage() {
       {/* Hint System - Always Visible */}
       <HintSystem
         hints={hintsUsed}
-        hintsRemaining={hintsRemaining}
+        hintsRemaining={progressMetrics.hintsRemaining}
         currentHint={currentAdaptiveHint}
         onDismiss={() => setCurrentAdaptiveHint(null)}
         onRequestHint={() => requestHint('manual_request')}
         canRequestHint={true}
+        isRequestingHint={isRequestingHint}
       />
 
       {/* Simple Hint Toast */}
