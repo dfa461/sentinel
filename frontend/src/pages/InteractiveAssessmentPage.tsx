@@ -18,24 +18,16 @@ import type {
   RLFeedbackSignal,
   ChallengeTodo,
 } from '../types/monitoring';
-import { MERGE_INTERVALS, TOP_K_FREQUENT_ELEMENTS } from '../data/problems';
+import { TOP_K_FREQUENT_ELEMENTS } from '../data/problems';
 import { cn } from '../lib/utils';
 
 const API_BASE = 'http://localhost:8000';
 const RL_API_BASE = 'http://localhost:8000/api/rl';
 
-const PROBLEMS = {
-  'merge-intervals': MERGE_INTERVALS,
-  'top-k-frequent': TOP_K_FREQUENT_ELEMENTS,
-} as const;
-
-type ProblemTab = keyof typeof PROBLEMS;
-
 export function InteractiveAssessmentPage() {
-  const [activeTab, setActiveTab] = useState<ProblemTab>('merge-intervals');
-  const [problem, setProblem] = useState<Problem>(MERGE_INTERVALS);
+  const [problem] = useState<Problem>(TOP_K_FREQUENT_ELEMENTS);
   const [language, setLanguage] = useState<'python' | 'java'>('python');
-  const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
+  const [code, setCode] = useState(TOP_K_FREQUENT_ELEMENTS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Original intervention states
@@ -124,26 +116,6 @@ export function InteractiveAssessmentPage() {
     const lines = code.split('\n').filter((l) => l.trim().length > 0).length;
     const keywords = (code.match(/\b(if|else|for|while|def|class|return)\b/g) || []).length;
     return Math.min(100, (lines + keywords * 2) / 2);
-  };
-
-  const handleTabChange = (tab: ProblemTab) => {
-    const newProblem = PROBLEMS[tab];
-    setActiveTab(tab);
-    setProblem(newProblem);
-    // Use current language or fallback to python
-    const newCode = newProblem.starterCode[language] || newProblem.starterCode.python;
-    setCode(newCode);
-    // Reset states when switching problems
-    setLastExecutionResult(null);
-    setExecutionAttemptCount(0);
-    setProgressMetrics({
-      linesWritten: 0,
-      codeComplexity: 0,
-      lastChangeTimestamp: Date.now(),
-      totalChanges: 0,
-      consecutiveFailures: 0,
-      hintsRemaining: 999,
-    });
   };
 
   const handleLanguageChange = (newLanguage: 'python' | 'java') => {
@@ -516,32 +488,6 @@ export function InteractiveAssessmentPage() {
               Submit
             </button>
           </div>
-        </div>
-
-        {/* Problem Tabs */}
-        <div className="flex gap-1 mt-4 border-b border-slate-700">
-          <button
-            onClick={() => handleTabChange('merge-intervals')}
-            className={cn(
-              'px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg',
-              activeTab === 'merge-intervals'
-                ? 'bg-slate-800 text-white border-b-2 border-blue-500'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            )}
-          >
-            Merge Intervals
-          </button>
-          <button
-            onClick={() => handleTabChange('top-k-frequent')}
-            className={cn(
-              'px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg',
-              activeTab === 'top-k-frequent'
-                ? 'bg-slate-800 text-white border-b-2 border-blue-500'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-            )}
-          >
-            Top K Frequent Elements
-          </button>
         </div>
       </header>
 
