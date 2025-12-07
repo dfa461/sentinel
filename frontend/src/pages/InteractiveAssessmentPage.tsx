@@ -77,6 +77,12 @@ export function InteractiveAssessmentPage() {
   const pauseCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const noProgressCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const codeBeforePauseRef = useRef(code);
+  const monitoringEventsRef = useRef<MonitoringEvent[]>(monitoringEvents);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    monitoringEventsRef.current = monitoringEvents;
+  }, [monitoringEvents]);
 
   // Timer
   useEffect(() => {
@@ -225,16 +231,20 @@ export function InteractiveAssessmentPage() {
     lastActivityRef.current = Date.now();
 
     // Update progress metrics
-    setProgressMetrics((prev) => ({
-      ...prev,
-      linesWritten: newCode.split('\n').length,
-      lastChangeTimestamp: Date.now(),
-      totalChanges: prev.totalChanges + 1,
-      codeComplexity: calculateComplexity(newCode),
-    }));
+    setProgressMetrics((prev) => {
+      const newMetrics = {
+        ...prev,
+        linesWritten: newCode.split('\n').length,
+        lastChangeTimestamp: Date.now(),
+        totalChanges: prev.totalChanges + 1,
+        codeComplexity: calculateComplexity(newCode),
+      };
 
-    // Send snapshot for monitoring
-    debouncedSnapshot(newCode);
+      // Send snapshot for monitoring with the new metrics
+      debouncedSnapshotRef.current(newCode, newMetrics, monitoringEventsRef.current, language);
+
+      return newMetrics;
+    });
   };
 
   const calculateComplexity = (code: string): number => {
@@ -244,8 +254,9 @@ export function InteractiveAssessmentPage() {
     return Math.min(100, (lines + keywords * 2) / 2);
   };
 
-  const debouncedSnapshot = useCallback(
-    debounce(async (currentCode: string) => {
+  // Use useRef to create a stable debounced function that doesn't get recreated
+  const debouncedSnapshotRef = useRef(
+    debounce(async (currentCode: string, metrics: any, events: any, lang: string) => {
       try {
         const response = await fetch(`${RL_API_BASE}/monitor-progress`, {
           method: 'POST',
@@ -253,9 +264,9 @@ export function InteractiveAssessmentPage() {
           body: JSON.stringify({
             code: currentCode,
             problem: problem.description,
-            language,
-            progressMetrics,
-            monitoringEvents,
+            language: lang,
+            progressMetrics: metrics,
+            monitoringEvents: events,
           }),
         });
 
@@ -270,8 +281,7 @@ export function InteractiveAssessmentPage() {
       } catch (error) {
         console.error('Error monitoring progress:', error);
       }
-    }, 5000),
-    [language, problem, progressMetrics, monitoringEvents]
+    }, 5000)
   );
 
   const handleThoughtProcessSubmit = async (response: string, isVoice: boolean) => {
