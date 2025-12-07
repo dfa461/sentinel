@@ -10,6 +10,10 @@ from dotenv import load_dotenv
 from xai_sdk import AsyncClient
 from xai_sdk.chat import user, system
 from .rl_assessment import router as rl_router
+import subprocess
+import tempfile
+import time
+import re
 
 load_dotenv()
 
@@ -66,6 +70,36 @@ class Feedback(BaseModel):
     assessmentId: str
     isPositive: bool
     timestamp: int
+
+
+class TestCase(BaseModel):
+    input: str
+    output: str
+
+
+class RunCodeRequest(BaseModel):
+    code: str
+    language: str
+    testCases: List[TestCase]
+
+
+class TestResult(BaseModel):
+    passed: bool
+    input: str
+    expectedOutput: str
+    actualOutput: Optional[str] = None
+    error: Optional[str] = None
+    executionTime: Optional[float] = None
+    stdout: Optional[str] = None
+    stderr: Optional[str] = None
+
+
+class RunCodeResponse(BaseModel):
+    success: bool
+    results: List[TestResult]
+    totalTests: int
+    passedTests: int
+    error: Optional[str] = None
 
 
 async def call_grok_api(messages: List[Dict[str, str]], temperature: float = 0.7) -> str:
@@ -296,6 +330,228 @@ async def submit_feedback(feedback: Feedback):
         "status": "success",
         "message": "Feedback recorded. This will be used to improve our AI model via reinforcement learning."
     }
+
+
+@app.post("/run-code", response_model=RunCodeResponse)
+async def run_code(request: RunCodeRequest):
+    """
+    Execute code against test cases in a sandboxed environment.
+    Supports Python and JavaScript.
+    """
+
+    if request.language not in ["python", "javascript"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}")
+
+    results = []
+    passed_count = 0
+
+    for test_case in request.testCases:
+        try:
+            start_time = time.time()
+
+            if request.language == "python":
+                result = await execute_python_code(request.code, test_case)
+            else:  # javascript
+                result = await execute_javascript_code(request.code, test_case)
+
+            execution_time = time.time() - start_time
+            result.executionTime = execution_time
+
+            if result.passed:
+                passed_count += 1
+
+            results.append(result)
+
+        except Exception as e:
+            results.append(TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=f"Execution error: {str(e)}"
+            ))
+
+    return RunCodeResponse(
+        success=True,
+        results=results,
+        totalTests=len(request.testCases),
+        passedTests=passed_count
+    )
+
+
+async def execute_python_code(code: str, test_case: TestCase) -> TestResult:
+    """Execute Python code with test case input"""
+
+    # Extract function name from the code (look for def function_name pattern)
+    # Find all function definitions and skip __init__ and other dunder methods
+    func_matches = re.finditer(r'def\s+(\w+)\s*\(', code)
+    func_names = [match.group(1) for match in func_matches if not match.group(1).startswith('__')]
+
+    if not func_names:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find a non-dunder function definition in the code"
+        )
+
+    # Use the last function defined (typically the solution function)
+    func_name = func_names[-1]
+
+    # Wrap the user's code with a main function that calls it with test inputs
+    # The test_case.input should be in the format of function arguments, e.g., "2, 3"
+    wrapped_code = f"""{code}
+
+if __name__ == "__main__":
+    result = {func_name}({test_case.input})
+    print(result)
+"""
+
+    # Create a temporary file with the wrapped code
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        f.write(wrapped_code)
+        temp_file = f.name
+
+    try:
+        # Execute with timeout
+        process = subprocess.run(
+            ['python3', temp_file],
+            capture_output=True,
+            text=True,
+            timeout=5  # 5 second timeout
+        )
+
+        stdout = process.stdout
+        stderr = process.stderr
+
+        # Capture the last line of stdout as the actual output for comparison
+        # This allows print statements to be shown while still comparing final result
+        output_lines = stdout.strip().split('\n') if stdout.strip() else []
+        actual_output = output_lines[-1] if output_lines else ""
+
+        # Remove the last line from stdout since it's already in actualOutput
+        console_output = '\n'.join(output_lines[:-1]) if len(output_lines) > 1 else ""
+
+        if process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=stderr or "Execution failed",
+                stdout=stdout,
+                stderr=stderr
+            )
+
+        # Simple comparison (production would need more sophisticated comparison)
+        passed = actual_output.strip() == test_case.output.strip()
+
+        return TestResult(
+            passed=passed,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            actualOutput=actual_output,
+            stdout=console_output,
+            stderr=stderr
+        )
+
+    except subprocess.TimeoutExpired:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Execution timeout (5 seconds)",
+            stdout="",
+            stderr=""
+        )
+    finally:
+        # Clean up temp file
+        os.unlink(temp_file)
+
+
+async def execute_javascript_code(code: str, test_case: TestCase) -> TestResult:
+    """Execute JavaScript code with test case input"""
+
+    # Extract function name from the code (look for function function_name pattern)
+    # Find all function definitions, use the last one (typically the solution function)
+    func_matches = re.finditer(r'function\s+(\w+)\s*\(', code)
+    func_names = [match.group(1) for match in func_matches]
+
+    if not func_names:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find a function definition in the code"
+        )
+
+    # Use the last function defined (typically the solution function)
+    func_name = func_names[-1]
+
+    # Wrap the user's code with a call that executes it with test inputs
+    wrapped_code = f"""{code}
+
+// Execute the function with test inputs and print the result
+const result = {func_name}({test_case.input});
+console.log(result);
+"""
+
+    # Create a temporary file with the wrapped code
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        f.write(wrapped_code)
+        temp_file = f.name
+
+    try:
+        # Execute with timeout
+        process = subprocess.run(
+            ['node', temp_file],
+            capture_output=True,
+            text=True,
+            timeout=5  # 5 second timeout
+        )
+
+        stdout = process.stdout
+        stderr = process.stderr
+
+        # Capture the last line of stdout as the actual output for comparison
+        output_lines = stdout.strip().split('\n') if stdout.strip() else []
+        actual_output = output_lines[-1] if output_lines else ""
+
+        # Remove the last line from stdout since it's already in actualOutput
+        console_output = '\n'.join(output_lines[:-1]) if len(output_lines) > 1 else ""
+
+        if process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=stderr or "Execution failed",
+                stdout=stdout,
+                stderr=stderr
+            )
+
+        # Simple comparison
+        passed = actual_output.strip() == test_case.output.strip()
+
+        return TestResult(
+            passed=passed,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            actualOutput=actual_output,
+            stdout=console_output,
+            stderr=stderr
+        )
+
+    except subprocess.TimeoutExpired:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Execution timeout (5 seconds)",
+            stdout="",
+            stderr=""
+        )
+    finally:
+        # Clean up temp file
+        os.unlink(temp_file)
 
 
 @app.get("/health")

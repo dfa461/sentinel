@@ -1,56 +1,57 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Code2, Send } from 'lucide-react';
+import { Code2, Send, Play } from 'lucide-react';
 import { CodeEditor } from '../components/CodeEditor';
 import { ProblemPanel } from '../components/ProblemPanel';
 import { HintToast } from '../components/HintToast';
 import { InterventionModal } from '../components/InterventionModal';
+import { TestResults } from '../components/TestResults';
 import { debounce } from '../lib/utils';
 import type { Problem, Intervention, CodeSnapshot, CandidateResponse } from '../types';
 
 // Mock problem for demo
 const MOCK_PROBLEM: Problem = {
-  id: 'binary-tree-invert',
-  title: 'Invert Binary Tree',
-  description: `Given the root of a binary tree, invert the tree, and return its root.
+  id: 'two-sum',
+  title: 'Two Sum',
+  description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
 
-Inverting a binary tree means swapping the left and right children of all nodes in the tree.
+You may assume that each input would have exactly one solution, and you may not use the same element twice.
+
+You can return the answer in any order.
 
 **Constraints:**
-- The number of nodes in the tree is in the range [0, 100].
-- -100 <= Node.val <= 100
+- 2 <= nums.length <= 10^4
+- -10^9 <= nums[i] <= 10^9
+- -10^9 <= target <= 10^9
+- Only one valid answer exists.
 
-**Follow-up:**
-Can you solve this both recursively and iteratively?`,
+**Example 1:**
+Input: nums = [2,7,11,15], target = 9
+Output: [0,1]
+Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].
+
+**Example 2:**
+Input: nums = [3,2,4], target = 6
+Output: [1,2]`,
   starterCode: {
-    python: `# Definition for a binary tree node.
-class TreeNode:
-    def __init__(self, val=0, left=None, right=None):
-        self.val = val
-        self.left = left
-        self.right = right
-
-def invertTree(root: TreeNode) -> TreeNode:
+    python: `def twoSum(nums, target):
     # Your code here
     pass`,
-    javascript: `// Definition for a binary tree node.
-function TreeNode(val, left, right) {
-    this.val = (val===undefined ? 0 : val)
-    this.left = (left===undefined ? null : left)
-    this.right = (right===undefined ? null : right)
-}
-
-function invertTree(root) {
+    javascript: `function twoSum(nums, target) {
     // Your code here
 }`,
   },
   testCases: [
     {
-      input: 'root = [4,2,7,1,3,6,9]',
-      output: '[4,7,2,9,6,3,1]',
+      input: '[2,7,11,15], 9',
+      output: '[0, 1]',
     },
     {
-      input: 'root = [2,1,3]',
-      output: '[2,3,1]',
+      input: '[3,2,4], 6',
+      output: '[1, 2]',
+    },
+    {
+      input: '[3,3], 6',
+      output: '[0, 1]',
     },
   ],
 };
@@ -67,6 +68,8 @@ export function AssessmentPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<CodeSnapshot[]>([]);
   const [responses, setResponses] = useState<CandidateResponse[]>([]);
+  const [testResults, setTestResults] = useState<any>(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   const startTimeRef = useRef(Date.now());
 
@@ -155,6 +158,38 @@ export function AssessmentPage() {
     setCurrentIntervention(null);
   };
 
+  const handleRunCode = async () => {
+    if (!problem.testCases || problem.testCases.length === 0) {
+      alert('No test cases available for this problem');
+      return;
+    }
+
+    setIsRunning(true);
+    try {
+      const response = await fetch(`${API_BASE}/run-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code,
+          language,
+          testCases: problem.testCases,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTestResults(data);
+      } else {
+        alert('Failed to run code. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error running code:', error);
+      alert('Failed to run code. Make sure the backend is running.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const response = await fetch(`${API_BASE}/submit-assessment`, {
@@ -211,6 +246,15 @@ export function AssessmentPage() {
             </select>
 
             <button
+              onClick={handleRunCode}
+              disabled={isRunning}
+              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Play className="w-4 h-4" />
+              {isRunning ? 'Running...' : 'Run Code'}
+            </button>
+
+            <button
               onClick={handleSubmit}
               className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-green-500/50"
             >
@@ -250,6 +294,15 @@ export function AssessmentPage() {
         onSubmit={handleInterventionResponse}
         isOpen={isModalOpen}
       />
+
+      {testResults && (
+        <TestResults
+          results={testResults.results}
+          totalTests={testResults.totalTests}
+          passedTests={testResults.passedTests}
+          onClose={() => setTestResults(null)}
+        />
+      )}
     </div>
   );
 }
