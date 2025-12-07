@@ -50,6 +50,10 @@ if X_BEARER_TOKEN:
 # Create GitHub extractor
 github_extractor = GitHubExtractor(GITHUB_TOKEN) if GITHUB_TOKEN else None
 
+# In-memory storage for candidates
+pending_candidates_db: Dict[str, Any] = {}  # username -> candidate data
+assessed_candidates_db: Dict[str, Any] = {}  # username -> assessment data
+
 
 # Models removed - no longer needed since AssessmentPage was removed
 # InteractiveAssessmentPage uses RL-specific endpoints in rl_assessment.py
@@ -214,24 +218,24 @@ Make search_queries diverse and progressively broader. Include both formal (e.g.
                 'max_results': 50,
                 'description': 'Level 3: Primary keywords only'
             },
-            {
-                'queries': technical_terms[:3],  # Just technical terms
-                'suffix': '',  # Include retweets too
-                'max_results': 100,
-                'description': 'Level 4: Technical terms + retweets allowed'
-            },
-            {
-                'queries': [f"{kw} developer" for kw in primary_keywords[:2]],  # Combine with "developer"
-                'suffix': '',
-                'max_results': 100,
-                'description': 'Level 5: Keywords + "developer"'
-            },
-            {
-                'queries': [f"{kw} engineer" for kw in technical_terms[:2]],  # Combine with "engineer"
-                'suffix': '',
-                'max_results': 100,
-                'description': 'Level 6: Technical terms + "engineer"'
-            }
+            # {
+            #     'queries': technical_terms[:3],  # Just technical terms
+            #     'suffix': '',  # Include retweets too
+            #     'max_results': 100,
+            #     'description': 'Level 4: Technical terms + retweets allowed'
+            # },
+            # {
+            #     'queries': [f"{kw} developer" for kw in primary_keywords[:2]],  # Combine with "developer"
+            #     'suffix': '',
+            #     'max_results': 100,
+            #     'description': 'Level 5: Keywords + "developer"'
+            # },
+            # {
+            #     'queries': [f"{kw} engineer" for kw in technical_terms[:2]],  # Combine with "engineer"
+            #     'suffix': '',
+            #     'max_results': 100,
+            #     'description': 'Level 6: Technical terms + "engineer"'
+            # }
         ]
 
         for attempt in search_attempts:
@@ -251,7 +255,7 @@ Make search_queries diverse and progressively broader. Include both formal (e.g.
 
                     # Search posts matching the query - fetch multiple pages
                     pages_fetched = 0
-                    max_pages = 3  # Fetch up to 3 pages per query for broader results
+                    max_pages = 1  # Fetch up to 3 pages per query for broader results
 
                     for page in x_client.posts.search_recent(
                         query=full_query,
@@ -447,25 +451,38 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
 
         if github_extractor:
             for username, data in candidates_with_github.items():
-                # Extract GitHub username from first GitHub link
-                github_usernames = []
+                print(f"[Stage 4.5] Processing @{username} with {len(data['github_links'])} GitHub links")
+
+                # Extract GitHub username/org from first GitHub link
+                github_usernames = set()
                 for gh_link in list(data['github_links'])[:3]:  # Check first 3 links
                     # Extract username from github.com/username or github.com/username/repo
                     match = re.search(r'github\.com/([^/\s]+)', gh_link)
                     if match:
-                        github_usernames.append(match.group(1))
+                        gh_owner = match.group(1)
+                        github_usernames.add(gh_owner)
+                        print(f"[Stage 4.5] Extracted GitHub owner: {gh_owner} from {gh_link}")
 
                 # Try to get GitHub profile info for each username
                 for gh_user in github_usernames:
                     try:
+                        print(f"[Stage 4.5] Fetching GitHub profile for: {gh_user}")
                         gh_profile = github_extractor.get_user_details(gh_user)
+
                         if gh_profile:
-                            data['github_profile'] = github_extractor.extract_user_info(gh_profile)
-                            print(f"[Stage 4.5] @{username} -> GitHub: {gh_user} (email: {data['github_profile'].get('email', 'N/A')})")
+                            user_info = github_extractor.extract_user_info(gh_profile)
+                            data['github_profile'] = user_info
+                            print(f"[Stage 4.5] ✓ @{username} -> GitHub @{gh_user}: email={user_info.get('email', 'N/A')}, twitter={user_info.get('twitter', 'N/A')}")
                             break  # Stop after first successful profile
+                        else:
+                            print(f"[Stage 4.5] No profile returned for {gh_user}")
+
                     except Exception as e:
                         print(f"[Stage 4.5] Error fetching GitHub profile for {gh_user}: {e}")
                         continue
+
+                if not data.get('github_profile'):
+                    print(f"[Stage 4.5] ✗ No GitHub profile found for @{username}")
 
         # Format final results
         results = []
@@ -492,7 +509,7 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
                     github_bio=gh_prof.get('bio')
                 )
 
-            results.append(CandidatePost(
+            candidate_obj = CandidatePost(
                 username=username,
                 post_text=best_post['text'],
                 post_url=f"https://x.com/{username}",
@@ -500,7 +517,13 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
                 relevance_score=data.get('relevance_score'),
                 social_media=social_media,
                 status="pending"
-            ))
+            )
+            results.append(candidate_obj)
+
+            # Store in pending candidates database
+            pending_candidates_db[username] = candidate_obj.dict()
+
+        print(f"[Storage] Stored {len(results)} candidates in pending_candidates_db")
 
         return {
             "role_description": request.role_description,
@@ -515,6 +538,45 @@ Include only candidates with score >= 6.0. Limit to top {request.max_results}.""
     except Exception as e:
         print(f"Error searching candidates: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to search candidates: {str(e)}")
+
+
+@app.get("/candidates/all")
+async def get_all_candidates():
+    """Get all candidates (pending and assessed)"""
+    return {
+        "pending": list(pending_candidates_db.values()),
+        "assessed": list(assessed_candidates_db.values()),
+        "total_pending": len(pending_candidates_db),
+        "total_assessed": len(assessed_candidates_db)
+    }
+
+
+class SendAssessmentRequest(BaseModel):
+    username: str
+    email: str
+
+
+@app.post("/send-assessment")
+async def send_assessment_email(request: SendAssessmentRequest):
+    """Send assessment link to candidate via email"""
+
+    assessment_link = "https://tinyurl.com/325bb7pb"  # Links to /interactive
+    recipient_email = "frankg0485@gmail.com"  # Always send to this email for testing
+
+    print(f"[Email] Would send assessment for @{request.username} (candidate email: {request.email})")
+    print(f"[Email] Actually sending to: {recipient_email}")
+    print(f"[Email] Link: {assessment_link}")
+
+    # TODO: Integrate with actual email service (SendGrid, AWS SES, Resend, etc.)
+    # For now, just log the action
+
+    return {
+        "success": True,
+        "message": f"Assessment link would be sent to {request.email}, but currently sending to {recipient_email} for testing",
+        "assessment_link": assessment_link,
+        "candidate_username": request.username,
+        "note": "Email service integration pending"
+    }
 
 
 @app.get("/test-x-search")
@@ -563,6 +625,64 @@ async def test_x_search():
             "error": str(e),
             "error_type": type(e).__name__
         }
+
+
+@app.post("/generate-question-from-resume")
+async def generate_question_from_resume(file: Any = None):
+    """
+    Generate a custom coding question based on uploaded resume.
+    Uses Grok to analyze resume and create relevant problem + test cases.
+    """
+
+    # For now, accept resume text directly in the request body
+    # In production, handle file upload with multipart/form-data
+
+    try:
+        # TODO: Extract text from uploaded PDF/DOCX resume
+        # For now, we'll use a placeholder
+
+        resume_analysis_prompt = """Analyze this candidate's resume and generate a custom coding problem that matches their background.
+
+The problem should:
+1. Be relevant to their experience level and domain
+2. Have 2-3 test cases with clear input/output
+3. Be completable in 20-30 minutes
+4. Test practical skills mentioned in their resume
+
+Return ONLY a JSON object:
+{
+    "problem_title": "Problem Title",
+    "problem_description": "Detailed description in markdown format with constraints and examples",
+    "starter_code_python": "def function_name():\\n    pass",
+    "starter_code_java": "class Solution { }",
+    "test_cases": [
+        {"input": "example input", "output": "expected output"},
+        {"input": "another input", "output": "expected output"}
+    ],
+    "difficulty": "medium",
+    "topics": ["arrays", "hash tables"]
+}"""
+
+        grok_response = await call_grok_api(
+            [{"role": "user", "content": resume_analysis_prompt}],
+            temperature=0.5
+        )
+
+        # Parse response
+        json_match = re.search(r'\{.*\}', grok_response, re.DOTALL)
+        if not json_match:
+            raise HTTPException(status_code=500, detail="Failed to generate question")
+
+        question_data = json.loads(json_match.group(0))
+
+        return {
+            "success": True,
+            "question": question_data
+        }
+
+    except Exception as e:
+        print(f"Error generating question from resume: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate question: {str(e)}")
 
 
 @app.get("/health")

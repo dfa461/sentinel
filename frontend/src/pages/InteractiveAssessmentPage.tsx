@@ -8,6 +8,7 @@ import { HintToast } from '../components/HintToast';
 import { InterventionModal } from '../components/InterventionModal';
 import { HintSystem } from '../components/HintSystem';
 import { CodeExecutionPanel } from '../components/CodeExecutionPanel';
+import { ResumeUploadModal } from '../components/ResumeUploadModal';
 import type { Problem, Intervention } from '../types';
 import type {
   ProgressMetrics,
@@ -30,10 +31,12 @@ export function InteractiveAssessmentPage() {
   // Use default problem (can be randomized if desired)
   const initialProblem = TOP_K_FREQUENT_ELEMENTS;
 
-  const [problem] = useState<Problem>(initialProblem);
+  const [problem, setProblem] = useState<Problem>(initialProblem);
   const [language, setLanguage] = useState<'python' | 'java'>('python');
   const [code, setCode] = useState(initialProblem.starterCode.python || '');
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [showResumeModal, setShowResumeModal] = useState(true); // Show on load
+  const [hasUploadedResume, setHasUploadedResume] = useState(false);
 
   // Original intervention states
   const [currentHint, setCurrentHint] = useState<string | null>(null);
@@ -411,6 +414,25 @@ export function InteractiveAssessmentPage() {
     return { success: false, error: 'Execution failed' };
   };
 
+  const handleResumeUploaded = (questionData: any) => {
+    // Update problem with generated question
+    const customProblem: Problem = {
+      id: 'custom-resume-based',
+      title: questionData.problem_title,
+      description: questionData.problem_description,
+      starterCode: {
+        python: questionData.starter_code_python,
+        java: questionData.starter_code_java || questionData.starter_code_python
+      },
+      testCases: questionData.test_cases
+    };
+
+    setProblem(customProblem);
+    setCode(customProblem.starterCode[language]);
+    setShowResumeModal(false);
+    setHasUploadedResume(true);
+  };
+
 
   const handleSubmit = async () => {
     // Submit assessment with all RL data including challenge TODOs
@@ -659,6 +681,12 @@ export function InteractiveAssessmentPage() {
         intervention={currentIntervention}
         onSubmit={handleInterventionResponse}
         isOpen={isModalOpen}
+      />
+
+      {/* Resume Upload Modal */}
+      <ResumeUploadModal
+        isOpen={showResumeModal}
+        onResumeUploaded={handleResumeUploaded}
       />
     </div>
   );

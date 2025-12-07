@@ -1061,7 +1061,7 @@ export function RecruiterDashboard() {
 
                     {/* Social Media Info */}
                     {candidate.social_media && (
-                      <div className="flex flex-wrap gap-4 text-xs text-slate-400">
+                      <div className="flex flex-wrap gap-4 text-xs text-slate-400 mb-4">
                         {candidate.social_media.email && (
                           <div className="flex items-center gap-1">
                             <Mail className="w-3 h-3" />
@@ -1103,6 +1103,34 @@ export function RecruiterDashboard() {
                           </a>
                         )}
                       </div>
+                    )}
+
+                    {/* Send Assessment Button */}
+                    {candidate.social_media?.email && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('http://localhost:8000/send-assessment', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                username: candidate.username,
+                                email: candidate.social_media.email
+                              })
+                            });
+                            if (response.ok) {
+                              alert('Assessment link sent!');
+                            }
+                          } catch (error) {
+                            console.error('Error sending assessment:', error);
+                            alert('Failed to send assessment link');
+                          }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-all text-sm"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Send Assessment
+                      </button>
                     )}
                   </div>
                 </div>

@@ -71,13 +71,13 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
                 <div className="space-y-2">
                   <div>
                     <span className="text-xs font-semibold text-slate-400 uppercase">Input:</span>
-                    <pre className="mt-1 text-sm text-blue-300 font-mono bg-slate-800/50 p-2 rounded">
+                    <pre className="mt-1 text-sm text-blue-300 font-mono bg-slate-800/50 p-2 rounded overflow-x-auto max-w-full">
                       {testCase.input}
                     </pre>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-slate-400 uppercase">Output:</span>
-                    <pre className="mt-1 text-sm text-green-300 font-mono bg-slate-800/50 p-2 rounded">
+                    <pre className="mt-1 text-sm text-green-300 font-mono bg-slate-800/50 p-2 rounded overflow-x-auto max-w-full">
                       {testCase.output}
                     </pre>
                   </div>
