@@ -5,7 +5,6 @@ import { CodeEditor } from '../components/CodeEditor';
 import { ProblemPanel } from '../components/ProblemPanel';
 import { HintToast } from '../components/HintToast';
 import { InterventionModal } from '../components/InterventionModal';
-import { ThoughtProcessModal } from '../components/ThoughtProcessModal';
 import { HintSystem } from '../components/HintSystem';
 import { CodeExecutionPanel } from '../components/CodeExecutionPanel';
 import { debounce } from '../lib/utils';
@@ -13,27 +12,22 @@ import type { Problem, Intervention } from '../types';
 import type {
   AssessmentState,
   ProgressMetrics,
-  ThoughtProcessQuery,
   AdaptiveHint,
   CodeExecutionResult,
   MonitoringEvent,
   RLFeedbackSignal,
   ChallengeTodo,
 } from '../types/monitoring';
-import { MERGE_INTERVALS } from '../data/problems';
+import { TOP_K_FREQUENT_ELEMENTS } from '../data/problems';
+import { cn } from '../lib/utils';
 
 const API_BASE = 'http://localhost:8000';
 const RL_API_BASE = 'http://localhost:8000/api/rl';
-const PAUSE_THRESHOLD = 15000; // 15 seconds
-const LONG_PAUSE_THRESHOLD = 30000; // 30 seconds
-const NO_PROGRESS_THRESHOLD = 300000; // 5 minutes
-const PAUSE_COOLDOWN = 300000; // 5 minutes between pause interventions
-const ASSESSMENT_GRACE_PERIOD = 300000; // 5 minutes before starting pause detection
 
 export function InteractiveAssessmentPage() {
-  const [problem] = useState<Problem>(MERGE_INTERVALS);
-  const language = 'python'; // Fixed to Python only
-  const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
+  const [problem] = useState<Problem>(TOP_K_FREQUENT_ELEMENTS);
+  const [language, setLanguage] = useState<'python' | 'java'>('python');
+  const [code, setCode] = useState(TOP_K_FREQUENT_ELEMENTS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Original intervention states
@@ -41,11 +35,6 @@ export function InteractiveAssessmentPage() {
   const [currentIntervention, setCurrentIntervention] = useState<Intervention | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // New interactive states
-  const [thoughtProcessQuery, setThoughtProcessQuery] = useState<ThoughtProcessQuery | null>(null);
-  const [isThoughtModalOpen, setIsThoughtModalOpen] = useState(false);
-  const [isEvaluatingThought, setIsEvaluatingThought] = useState(false);
-  const [thoughtEvaluation, setThoughtEvaluation] = useState<any>(null);
 
   // Hint system states
   const [hintsUsed, setHintsUsed] = useState<AdaptiveHint[]>([]);
@@ -77,11 +66,6 @@ export function InteractiveAssessmentPage() {
 
   // Refs for tracking
   const startTimeRef = useRef(Date.now());
-  const lastActivityRef = useRef(Date.now());
-  const lastPauseInterventionRef = useRef<number>(0); // Track last pause intervention time
-  const pauseCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const noProgressCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const codeBeforePauseRef = useRef(code);
   const monitoringEventsRef = useRef<MonitoringEvent[]>(monitoringEvents);
   const lastChallengeCodeRef = useRef<string>(''); // Track code snapshot from last challenge
 
@@ -112,143 +96,12 @@ export function InteractiveAssessmentPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Pause Detection System
-  useEffect(() => {
-    // Check for pauses every 2 seconds
-    pauseCheckIntervalRef.current = setInterval(() => {
-      const timeSinceStart = Date.now() - startTimeRef.current;
-      const timeSinceLastActivity = Date.now() - lastActivityRef.current;
-      const timeSinceLastPauseIntervention = Date.now() - lastPauseInterventionRef.current;
-      const codeChanged = code !== codeBeforePauseRef.current;
-
-      // Only start pause detection after grace period (5 minutes)
-      if (timeSinceStart < ASSESSMENT_GRACE_PERIOD) {
-        return;
-      }
-
-      // Cooldown check - don't trigger if less than 5 minutes since last intervention
-      if (lastPauseInterventionRef.current > 0 && timeSinceLastPauseIntervention < PAUSE_COOLDOWN) {
-        return;
-      }
-
-      // Significant pause detected (15-30 seconds)
-      if (
-        timeSinceLastActivity >= PAUSE_THRESHOLD &&
-        timeSinceLastActivity < LONG_PAUSE_THRESHOLD &&
-        !isThoughtModalOpen &&
-        !isModalOpen &&
-        code.trim().length > 50 // Only if some code written
-      ) {
-        handlePauseDetected(timeSinceLastActivity / 1000);
-      }
-
-      // Long pause without changes (30+ seconds)
-      if (
-        timeSinceLastActivity >= LONG_PAUSE_THRESHOLD &&
-        !codeChanged &&
-        !isThoughtModalOpen &&
-        code.trim().length > 50
-      ) {
-        handleLongPauseDetected();
-      }
-    }, 2000);
-
-    return () => {
-      if (pauseCheckIntervalRef.current) {
-        clearInterval(pauseCheckIntervalRef.current);
-      }
-    };
-  }, [code, isThoughtModalOpen, isModalOpen]);
-
-  // No Progress Detection
-  useEffect(() => {
-    noProgressCheckIntervalRef.current = setInterval(() => {
-      const timeSinceLastChange = Date.now() - progressMetrics.lastChangeTimestamp;
-
-      if (
-        timeSinceLastChange >= NO_PROGRESS_THRESHOLD &&
-        !currentAdaptiveHint
-      ) {
-        handleNoProgressDetected();
-      }
-    }, 5000); // Check every 5 seconds
-
-    return () => {
-      if (noProgressCheckIntervalRef.current) {
-        clearInterval(noProgressCheckIntervalRef.current);
-      }
-    };
-  }, [progressMetrics.lastChangeTimestamp, currentAdaptiveHint]);
-
-  const handlePauseDetected = async (pauseDuration: number) => {
-    console.log('Pause detected:', pauseDuration, 'seconds');
-
-    // Record the time of this intervention
-    lastPauseInterventionRef.current = Date.now();
-
-    // Record monitoring event
-    const event: MonitoringEvent = {
-      id: Date.now().toString(),
-      type: 'pause_detected',
-      timestamp: Date.now(),
-      metadata: {
-        pauseDuration,
-        lastCodeSnapshot: code,
-        lineCount: code.split('\n').length,
-      },
-    };
-    setMonitoringEvents((prev) => [...prev, event]);
-
-    // Generate Socratic question
-    try {
-      const response = await fetch(`${RL_API_BASE}/generate-socratic-question`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code,
-          problem: problem.description,
-          language,
-          pauseDuration,
-          progressMetrics,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const query: ThoughtProcessQuery = {
-          id: Date.now().toString(),
-          question: data.question,
-          context: `You paused for ${Math.round(pauseDuration)} seconds`,
-          timestamp: Date.now(),
-          responseRequired: true,
-        };
-        setThoughtProcessQuery(query);
-        setIsThoughtModalOpen(true);
-        codeBeforePauseRef.current = code;
-      }
-    } catch (error) {
-      console.error('Error generating Socratic question:', error);
-    }
-  };
-
-  const handleLongPauseDetected = () => {
-    console.log('Long pause detected - might be stuck');
-    // Could trigger hint or different intervention
-  };
-
-  const handleNoProgressDetected = async () => {
-    console.log('No progress detected - offering hint');
-    await requestHint('no_progress');
-  };
 
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || '';
     setCode(newCode);
 
-    // Update activity tracking
-    lastActivityRef.current = Date.now();
-
-    // Update progress metrics (no debounced snapshot call anymore)
+    // Update progress metrics
     setProgressMetrics((prev) => ({
       ...prev,
       linesWritten: newCode.split('\n').length,
@@ -265,7 +118,17 @@ export function InteractiveAssessmentPage() {
     return Math.min(100, (lines + keywords * 2) / 2);
   };
 
-  // Fixed interval monitoring - snapshots code every 30 seconds
+  const handleLanguageChange = (newLanguage: 'python' | 'java') => {
+    setLanguage(newLanguage);
+    // Update code to the new language's starter code
+    const newCode = problem.starterCode[newLanguage] || problem.starterCode.python;
+    setCode(newCode);
+    // Reset execution states
+    setLastExecutionResult(null);
+    setExecutionAttemptCount(0);
+  };
+
+  // Fixed interval monitoring - snapshots code every 5 seconds
   useEffect(() => {
     const monitoringInterval = setInterval(async () => {
       try {
@@ -305,60 +168,11 @@ export function InteractiveAssessmentPage() {
       } catch (error) {
         console.error('Error monitoring progress:', error);
       }
-    }, 5000); // Check every 30 seconds
+    }, 5000); // Check every 5 seconds
 
     return () => clearInterval(monitoringInterval);
   }, [code, problem.description, language, progressMetrics, monitoringEvents]);
 
-  const handleThoughtProcessSubmit = async (response: string, isVoice: boolean) => {
-    if (!thoughtProcessQuery) return;
-
-    setIsEvaluatingThought(true);
-
-    try {
-      // Send to Grok for evaluation
-      const apiResponse = await fetch(`${RL_API_BASE}/evaluate-thought-process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: thoughtProcessQuery.question,
-          response,
-          code,
-          problem: problem.description,
-        }),
-      });
-
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
-        setThoughtEvaluation(data.evaluation);
-
-        // Record RL signal
-        const rlSignal: RLFeedbackSignal = {
-          eventId: thoughtProcessQuery.id,
-          eventType: 'pause_detected',
-          action: 'asked_thought_process',
-          reward: data.evaluation.isOnRightTrack ? 0.8 : 0.3,
-          state: {
-            codeQuality: progressMetrics.codeComplexity,
-            progressRate: progressMetrics.totalChanges / elapsedTime,
-            engagementLevel: 0.8,
-          },
-        };
-        setRlSignals((prev) => [...prev, rlSignal]);
-
-        // Auto-close modal after 3 seconds of showing feedback
-        setTimeout(() => {
-          setIsThoughtModalOpen(false);
-          setThoughtEvaluation(null);
-          setThoughtProcessQuery(null);
-        }, 3000);
-      }
-    } catch (error) {
-      console.error('Error evaluating thought process:', error);
-    } finally {
-      setIsEvaluatingThought(false);
-    }
-  };
 
   const requestHint = async (context: string = 'manual_request') => {
     setIsRequestingHint(true);
@@ -551,14 +365,8 @@ export function InteractiveAssessmentPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                Interactive AI Assessment
-                <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
-                  RL-Powered
-                </span>
+                Sentinel
               </h1>
-              <p className="text-xs text-slate-400">
-                Socratic Learning + Real-time Monitoring
-              </p>
             </div>
           </div>
 
@@ -634,6 +442,32 @@ export function InteractiveAssessmentPage() {
                 )}
               </div>
             )}
+
+            {/* Language Switcher */}
+            <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-1">
+              <button
+                onClick={() => handleLanguageChange('python')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded transition-all',
+                  language === 'python'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                Python
+              </button>
+              <button
+                onClick={() => handleLanguageChange('java')}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded transition-all',
+                  language === 'java'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                Java
+              </button>
+            </div>
 
             {/* Submit Button */}
             <button
@@ -711,15 +545,6 @@ export function InteractiveAssessmentPage() {
 
       {/* Simple Hint Toast */}
       <HintToast hint={currentHint || ''} onDismiss={() => setCurrentHint(null)} isVisible={!!currentHint} />
-
-      {/* Thought Process Modal */}
-      <ThoughtProcessModal
-        query={thoughtProcessQuery}
-        onSubmit={handleThoughtProcessSubmit}
-        isOpen={isThoughtModalOpen}
-        isEvaluating={isEvaluatingThought}
-        evaluation={thoughtEvaluation}
-      />
 
       {/* Challenge Intervention Modal */}
       <InterventionModal

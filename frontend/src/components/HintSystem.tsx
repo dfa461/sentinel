@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, Sparkles, TrendingUp, X, Loader2 } from 'lucide-react';
+import { Lightbulb, Sparkles, TrendingUp, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { AdaptiveHint } from '../types/monitoring';
+import { useState } from 'react';
 
 interface HintSystemProps {
   hints: AdaptiveHint[];
@@ -22,66 +23,80 @@ export function HintSystem({
   canRequestHint,
   isRequestingHint = false,
 }: HintSystemProps) {
+  const [isPreviousHintsExpanded, setIsPreviousHintsExpanded] = useState(false);
+
   return (
     <>
-      {/* Hint Request Display - Always visible */}
-      <div className="fixed top-24 right-6 z-40 w-80">
-        <div className="glass-effect rounded-xl p-4 border border-slate-700 shadow-xl">
-          <div className="flex items-center gap-3 mb-2">
-            <Lightbulb className="w-5 h-5 text-yellow-400" />
-            <span className="text-sm font-semibold text-slate-200">
-              AI Hints
-            </span>
-          </div>
+      {/* Hint Request Button - Fixed to right edge */}
+      <div className="fixed top-24 right-6 z-40 flex flex-col items-end gap-3">
+        {canRequestHint && (
+          <button
+            onClick={onRequestHint}
+            disabled={isRequestingHint}
+            className="glass-effect border border-slate-700 shadow-xl px-4 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white text-sm font-semibold rounded-lg transition-all hover:shadow-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isRequestingHint ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Lightbulb className="w-5 h-5" />
+            )}
+            {isRequestingHint ? 'Loading...' : 'Hint'}
+          </button>
+        )}
 
-          {canRequestHint && (
-            <button
-              onClick={onRequestHint}
-              disabled={isRequestingHint}
-              className="w-full py-2 px-4 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white text-sm font-semibold rounded-lg transition-all shadow-lg hover:shadow-yellow-500/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isRequestingHint && (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              )}
-              {isRequestingHint ? 'Generating Hint...' : 'Request Hint'}
-            </button>
-          )}
-        </div>
-
-        {/* Hints History */}
+        {/* Previous Hints - Collapsible */}
         {hints.length > 0 && (
-          <div className="mt-3 glass-effect rounded-xl p-3 border border-slate-700 shadow-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <span className="text-xs font-semibold text-slate-300">
-                Previous Hints
-              </span>
-            </div>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {hints.map((hint, idx) => (
-                <div
-                  key={hint.id}
-                  className="bg-slate-800/50 rounded-lg p-2 border border-slate-700"
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-xs font-bold text-yellow-400 flex-shrink-0">
-                      #{idx + 1}
-                    </span>
-                    <p className="text-xs text-slate-300 flex-1 break-words">
-                      {hint.content}
-                    </p>
-                  </div>
-                  {hint.effectiveness !== undefined && (
-                    <div className="mt-1 flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3 text-green-400" />
-                      <span className="text-xs text-green-400">
-                        {Math.round(hint.effectiveness * 100)}% helpful
+          <div className={cn(
+            "glass-effect rounded-lg border border-slate-700 shadow-xl overflow-hidden transition-all",
+            isPreviousHintsExpanded ? "w-80" : "w-auto"
+          )}>
+            <button
+              onClick={() => setIsPreviousHintsExpanded(!isPreviousHintsExpanded)}
+              className={cn(
+                "w-full px-3 py-2 flex items-center hover:bg-slate-800/50 transition-all",
+                isPreviousHintsExpanded ? "justify-between" : "gap-2"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-400" />
+                <span className="text-xs font-semibold text-slate-300">
+                  Previous Hints ({hints.length})
+                </span>
+              </div>
+              {isPreviousHintsExpanded ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+
+            {isPreviousHintsExpanded && (
+              <div className="p-3 space-y-2 max-h-64 overflow-y-auto border-t border-slate-700">
+                {hints.map((hint, idx) => (
+                  <div
+                    key={hint.id}
+                    className="bg-slate-800/50 rounded-lg p-2 border border-slate-700"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs font-bold text-yellow-400 flex-shrink-0">
+                        #{idx + 1}
                       </span>
+                      <p className="text-xs text-slate-300 flex-1 break-words whitespace-normal">
+                        {hint.content}
+                      </p>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {hint.effectiveness !== undefined && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3 text-green-400" />
+                        <span className="text-xs text-green-400">
+                          {Math.round(hint.effectiveness * 100)}% helpful
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

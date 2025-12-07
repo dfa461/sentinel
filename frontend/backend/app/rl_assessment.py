@@ -14,6 +14,7 @@ import time
 import re
 import random
 import uuid
+import shutil
 from xai_sdk import AsyncClient
 from xai_sdk.chat import user, system
 
@@ -70,21 +71,6 @@ DEFAULT_ACTION_WEIGHTS = {
     "strong_hint": [0.08] * len(FEATURE_NAMES),
     "no_hint": [0.05] * len(FEATURE_NAMES),
 }
-
-
-class SocraticQuestionRequest(BaseModel):
-    code: str
-    problem: str
-    language: str
-    pauseDuration: float
-    progressMetrics: Dict[str, Any]  # Accept as dict
-
-
-class ThoughtProcessEvaluationRequest(BaseModel):
-    question: str
-    response: str
-    code: str
-    problem: str
 
 
 class AdaptiveHintRequest(BaseModel):
@@ -162,7 +148,7 @@ class RLSessionStepRequest(BaseModel):
 async def call_grok_api(
     messages: List[Dict[str, str]],
     temperature: float = 0.7,
-    model: str = "grok-4.1"
+    model: str = "grok-4-1-fast-reasoning"
 ) -> str:
     """Call Grok API with the given messages"""
     if not GROK_API_KEY:
@@ -467,7 +453,7 @@ async def generate_targeted_hint(
     policy_metrics: Dict[str, float]
 ) -> Dict[str, Any]:
     """
-    Route to Grok 4.1 with an action-specific prompt so we can personalize hints and follow-ups.
+    Route to Grok with an action-specific prompt so we can personalize hints and follow-ups.
     """
     focus_map = {
         "debug_followup": "Debug the most recent failing run. Suggest a minimal experiment to surface the bug quickly.",
@@ -522,7 +508,7 @@ Respond ONLY with JSON:
         response = await call_grok_api(
             [{"role": "user", "content": hint_prompt}],
             temperature=0.45,
-            model="grok-4.1"
+            model="grok-4-1-fast-reasoning"
         )
 
         json_start = response.find("{")
@@ -637,163 +623,6 @@ async def rl_session_step(step: RLSessionStepRequest):
         "rationale": rationale,
         "sessionExpired": expired,
     }
-@router.post("/generate-socratic-question")
-async def generate_socratic_question(request: SocraticQuestionRequest):
-    """
-    Generate a Socratic question based on pause detection.
-    Uses online RL to adapt question difficulty and type.
-    """
-
-    socratic_prompt = f"""You are a Socratic teacher using AI to guide software engineering candidates through problem-solving.
-
-**Context:**
-The candidate paused for {request.pauseDuration:.1f} seconds while solving:
-{request.problem}
-
-**Current Code (in {request.language}):**
-```{request.language}
-{request.code}
-```
-
-**Progress Metrics:**
-- Lines written: {request.progressMetrics.get('linesWritten', 0)}
-- Code complexity: {request.progressMetrics.get('codeComplexity', 0)}/100
-- Total changes: {request.progressMetrics.get('totalChanges', 0)}
-- Consecutive failures: {request.progressMetrics.get('consecutiveFailures', 0)}
-
-**Your Task:**
-Generate a Socratic question that:
-1. Helps them think through their approach (don't give answers)
-2. Probes their understanding of what they've written
-3. Guides them toward the right track if they're stuck
-4. Is specific to their code, not generic
-
-**Question Types:**
-- Guiding: "What are you trying to accomplish in this section?"
-- Probing: "Why did you choose this data structure?"
-- Challenging: "What edge cases might this approach miss?"
-- Clarifying: "Can you explain your thought process here?"
-
-**Respond ONLY with JSON:**
-{{
-    "question": "Your Socratic question here",
-    "expectedInsights": ["What you hope they'll realize"],
-    "difficulty": "guiding" | "probing" | "challenging"
-}}"""
-
-    try:
-        response = await call_grok_api(
-            [{"role": "user", "content": socratic_prompt}],
-            temperature=0.6
-        )
-
-        # Parse JSON response
-        json_start = response.find("{")
-        json_end = response.rfind("}") + 1
-        if json_start != -1 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            result = json.loads(json_str)
-            return result
-        else:
-            # Fallback question
-            return {
-                "question": "Can you walk me through your thinking on this approach?",
-                "expectedInsights": ["Understanding their reasoning"],
-                "difficulty": "guiding"
-            }
-
-    except Exception as e:
-        print(f"Error generating Socratic question: {e}")
-        return {
-            "question": "What's your strategy for solving this problem?",
-            "expectedInsights": ["Overall approach"],
-            "difficulty": "guiding"
-        }
-
-
-@router.post("/evaluate-thought-process")
-async def evaluate_thought_process(request: ThoughtProcessEvaluationRequest):
-    """
-    Evaluate candidate's thought process and provide feedback.
-    This is the key RL component - we learn from these interactions.
-    """
-
-    evaluation_prompt = f"""You are an expert technical interviewer evaluating a candidate's thought process.
-
-**Question Asked:**
-{request.question}
-
-**Candidate's Response:**
-{request.response}
-
-**Their Current Code:**
-```
-{request.code}
-```
-
-**Problem:**
-{request.problem}
-
-**Your Task:**
-Evaluate if the candidate is on the right track. Consider:
-1. Do they understand what they're doing?
-2. Is their reasoning sound?
-3. Are they making progress toward a solution?
-4. Do they show problem-solving skills?
-
-**Be encouraging but honest.** If they're off track, gently guide them.
-
-**Respond ONLY with JSON:**
-{{
-    "isOnRightTrack": true/false,
-    "feedback": "Specific, constructive feedback (2-3 sentences)",
-    "confidence": 0.0-1.0,
-    "suggestedDirection": "If off track, what should they consider?"
-}}"""
-
-    try:
-        response = await call_grok_api(
-            [{"role": "user", "content": evaluation_prompt}],
-            temperature=0.4
-        )
-
-        json_start = response.find("{")
-        json_end = response.rfind("}") + 1
-        if json_start != -1 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            evaluation = json.loads(json_str)
-
-            # Record RL training data
-            rl_training_data.append({
-                "type": "thought_process_evaluation",
-                "question": request.question,
-                "response": request.response,
-                "code": request.code,
-                "evaluation": evaluation,
-                "timestamp": datetime.now().isoformat(),
-            })
-
-            return {"evaluation": evaluation}
-        else:
-            return {
-                "evaluation": {
-                    "isOnRightTrack": True,
-                    "feedback": "Good thinking! Keep going with your current approach.",
-                    "confidence": 0.5
-                }
-            }
-
-    except Exception as e:
-        print(f"Error evaluating thought process: {e}")
-        return {
-            "evaluation": {
-                "isOnRightTrack": True,
-                "feedback": "Continue with your approach and see where it leads.",
-                "confidence": 0.5
-            }
-        }
-
-
 @router.post("/generate-adaptive-hint")
 async def generate_adaptive_hint(request: AdaptiveHintRequest):
     """
@@ -1042,7 +871,7 @@ if __name__ == "__main__":
             # Remove spaces after commas, but preserve other formatting
             normalized = re.sub(r',\s+', ',', s.strip())
             return normalized
-        
+
         # Compare normalized outputs
         passed = normalize_output(actual_output) == normalize_output(test_case.output)
 
@@ -1069,14 +898,213 @@ if __name__ == "__main__":
         os.unlink(temp_file)
 
 
+def parse_java_test_input(test_input: str) -> str:
+    """
+    Parse test input and convert to valid Java syntax.
+    Converts: nums = [1,1,1,2,2,3], k = 2
+    To: new int[]{1,1,1,2,2,3}, 2
+    """
+    # Split by comma but respect array brackets
+    parts = []
+    current = ""
+    bracket_depth = 0
+
+    for char in test_input:
+        if char == '[':
+            bracket_depth += 1
+            current += char
+        elif char == ']':
+            bracket_depth -= 1
+            current += char
+        elif char == ',' and bracket_depth == 0:
+            parts.append(current.strip())
+            current = ""
+        else:
+            current += char
+
+    if current.strip():
+        parts.append(current.strip())
+
+    # Process each part
+    java_args = []
+    for part in parts:
+        # Check if it's a variable assignment (e.g., "nums = [1,2,3]")
+        if '=' in part:
+            var_name, value = part.split('=', 1)
+            var_name = var_name.strip()
+            value = value.strip()
+
+            # Convert array notation
+            if value.startswith('[') and value.endswith(']'):
+                # Extract array elements
+                array_content = value[1:-1].strip()
+                java_args.append(f"new int[]{{{array_content}}}")
+            else:
+                # Regular value (int, string, etc.)
+                java_args.append(value)
+        else:
+            # No assignment, just use the value
+            java_args.append(part.strip())
+
+    return ", ".join(java_args)
+
+
+async def execute_java_code(code: str, test_case: TestCase) -> TestResult:
+    """Execute Java code with test case input"""
+
+    # Extract method name from the code (look for public type methodName pattern)
+    method_match = re.search(r'public\s+\w+(?:\[\])?\s+(\w+)\s*\(', code)
+    if not method_match:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find a public method definition in the code"
+        )
+
+    method_name = method_match.group(1)
+
+    # Parse test input to Java syntax
+    java_input = parse_java_test_input(test_case.input)
+
+    # Remove the closing brace from the user's code to add main method
+    code_lines = code.strip().split('\n')
+
+    # Find the last closing brace (should be the class closing brace)
+    last_brace_idx = -1
+    for i in range(len(code_lines) - 1, -1, -1):
+        if code_lines[i].strip() == '}':
+            last_brace_idx = i
+            break
+
+    if last_brace_idx == -1:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Could not find class closing brace in the code"
+        )
+
+    # Insert main method before the last closing brace
+    main_method = """
+    public static void main(String[] args) {
+        Solution solution = new Solution();
+        Object result = solution.METHOD_NAME(ARGS);
+
+        // Handle array output
+        if (result instanceof int[]) {
+            int[] arr = (int[]) result;
+            System.out.print("[");
+            for (int i = 0; i < arr.length; i++) {
+                System.out.print(arr[i]);
+                if (i < arr.length - 1) System.out.print(",");
+            }
+            System.out.print("]");
+        } else {
+            System.out.print(result);
+        }
+    }
+"""
+
+    main_method = main_method.replace("METHOD_NAME", method_name).replace("ARGS", java_input)
+
+    # Reconstruct the code with main method
+    wrapped_lines = code_lines[:last_brace_idx] + [main_method] + code_lines[last_brace_idx:]
+    wrapped_code = '\n'.join(wrapped_lines)
+
+    # Create a temporary directory for Java files
+    temp_dir = tempfile.mkdtemp()
+    java_file = os.path.join(temp_dir, "Solution.java")
+
+    try:
+        # Write the Java code to file
+        with open(java_file, 'w') as f:
+            f.write(wrapped_code)
+
+        # Debug: print the wrapped code
+        print(f"[DEBUG] Wrapped Java code:\n{wrapped_code}\n")
+
+        # Compile Java code
+        compile_process = subprocess.run(
+            ['javac', java_file],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if compile_process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=f"Compilation error:\n{compile_process.stderr}\n\nGenerated code:\n{wrapped_code}",
+                stderr=compile_process.stderr
+            )
+
+        # Execute compiled Java code
+        execute_process = subprocess.run(
+            ['java', '-cp', temp_dir, 'Solution'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        stdout = execute_process.stdout
+        stderr = execute_process.stderr
+
+        # Get output
+        output_lines = stdout.strip().split('\n') if stdout.strip() else []
+        actual_output = output_lines[-1] if output_lines else ""
+        console_output = '\n'.join(output_lines[:-1]) if len(output_lines) > 1 else ""
+
+        if execute_process.returncode != 0:
+            return TestResult(
+                passed=False,
+                input=test_case.input,
+                expectedOutput=test_case.output,
+                error=stderr or "Execution failed",
+                stdout=console_output
+            )
+
+        # Normalize output for comparison
+        def normalize_output(s: str) -> str:
+            normalized = re.sub(r',\s+', ',', s.strip())
+            return normalized
+
+        passed = normalize_output(actual_output) == normalize_output(test_case.output)
+
+        return TestResult(
+            passed=passed,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            actualOutput=actual_output,
+            stdout=console_output,
+            stderr=stderr
+        )
+
+    except subprocess.TimeoutExpired:
+        return TestResult(
+            passed=False,
+            input=test_case.input,
+            expectedOutput=test_case.output,
+            error="Execution timeout (5 seconds)",
+            stdout="",
+            stderr=""
+        )
+    finally:
+        # Clean up temp files
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 @router.post("/execute-code")
 async def execute_code(request: CodeExecutionRequest):
     """
-    Execute Python code against test cases in a sandboxed environment.
+    Execute code against test cases in a sandboxed environment.
+    Supports Python and Java.
     """
 
-    if request.language != "python":
-        raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}. Only Python is supported.")
+    if request.language not in ["python", "java"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {request.language}. Supported languages: python, java")
 
     results = []
     passed_count = 0
@@ -1085,7 +1113,11 @@ async def execute_code(request: CodeExecutionRequest):
         try:
             start_time = time.time()
 
-            result = await execute_python_code(request.code, test_case)
+            # Execute based on language
+            if request.language == "python":
+                result = await execute_python_code(request.code, test_case)
+            else:  # java
+                result = await execute_java_code(request.code, test_case)
 
             execution_time = time.time() - start_time
             result.executionTime = execution_time

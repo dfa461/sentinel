@@ -111,6 +111,58 @@ def merge(intervals: List[List[int]]) -> List[List[int]]:
   ],
 };
 
+export const TOP_K_FREQUENT_ELEMENTS: Problem = {
+  id: 'top-k-frequent-elements',
+  title: 'Top K Frequent Elements',
+  description: `Given an integer array nums and an integer k, return the k most frequent elements. You may return the answer in any order.
+
+**Constraints:**
+- 1 <= nums.length <= 10^5
+- -10^4 <= nums[i] <= 10^4
+- k is in the range [1, the number of unique elements in the array].
+- It is guaranteed that the answer is unique.
+
+**Follow-up:**
+Your algorithm's time complexity must be better than O(n log n), where n is the array's size.
+
+**Example 1:**
+Input: nums = [1,1,1,2,2,3], k = 2
+Output: [1,2]
+
+**Example 2:**
+Input: nums = [1], k = 1
+Output: [1]`,
+  starterCode: {
+    python: `from typing import List
+
+def topKFrequent(nums: List[int], k: int) -> List[int]:
+    # Your code here
+    pass`,
+    java: `import java.util.*;
+
+class Solution {
+    public int[] topKFrequent(int[] nums, int k) {
+        // Your code here
+        return new int[0];
+    }
+}`,
+  },
+  testCases: [
+    {
+      input: 'nums = [1,1,1,2,2,3], k = 2',
+      output: '[1,2]',
+    },
+    {
+      input: 'nums = [1], k = 1',
+      output: '[1]',
+    },
+    {
+      input: 'nums = [4,1,-1,2,-1,2,3], k = 2',
+      output: '[-1,2]',
+    },
+  ],
+};
+
 export const LRU_CACHE: Problem = {
   id: 'lru-cache',
   title: 'LRU Cache',
@@ -195,6 +247,7 @@ export const ALL_PROBLEMS: Problem[] = [
   TWO_SUM,
   VALID_PARENTHESES,
   MERGE_INTERVALS,
+  TOP_K_FREQUENT_ELEMENTS,
   LRU_CACHE,
 ];
 
