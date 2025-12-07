@@ -42,7 +42,6 @@ export interface Problem {
   id: string;
   title: string;
   description: string;
-  difficulty: 'easy' | 'medium' | 'hard';
   starterCode: Record<string, string>; // language -> code
   testCases?: Array<{
     input: string;

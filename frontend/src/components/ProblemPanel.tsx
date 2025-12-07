@@ -1,5 +1,4 @@
 import { BookOpen, Clock, TrendingUp } from 'lucide-react';
-import { cn } from '../lib/utils';
 import type { Problem } from '../types';
 
 interface ProblemPanelProps {
@@ -12,12 +11,6 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const difficultyColors = {
-    easy: 'text-green-400 bg-green-400/10 border-green-400/30',
-    medium: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30',
-    hard: 'text-red-400 bg-red-400/10 border-red-400/30',
   };
 
   return (
@@ -33,13 +26,6 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
               {problem.title}
             </h2>
           </div>
-
-          <span className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide border",
-            difficultyColors[problem.difficulty]
-          )}>
-            {problem.difficulty}
-          </span>
         </div>
 
         <div className="flex items-center gap-6 text-sm">

@@ -11,7 +11,6 @@ import type { Problem, Intervention, CodeSnapshot, CandidateResponse } from '../
 const MOCK_PROBLEM: Problem = {
   id: 'binary-tree-invert',
   title: 'Invert Binary Tree',
-  difficulty: 'medium',
   description: `Given the root of a binary tree, invert the tree, and return its root.
 
 Inverting a binary tree means swapping the left and right children of all nodes in the tree.

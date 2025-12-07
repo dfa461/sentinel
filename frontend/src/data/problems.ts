@@ -8,7 +8,6 @@ import type { Problem } from '../types';
 export const BINARY_TREE_INVERT: Problem = {
   id: 'binary-tree-invert',
   title: 'Invert Binary Tree',
-  difficulty: 'medium',
   description: `Given the root of a binary tree, invert the tree, and return its root.
 
 Inverting a binary tree means swapping the left and right children of all nodes in the tree.
@@ -56,7 +55,6 @@ function invertTree(root) {
 export const TWO_SUM: Problem = {
   id: 'two-sum',
   title: 'Two Sum',
-  difficulty: 'easy',
   description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
 
 You may assume that each input would have exactly one solution, and you may not use the same element twice.
@@ -101,7 +99,6 @@ function twoSum(nums, target) {
 export const MERGE_INTERVALS: Problem = {
   id: 'merge-intervals',
   title: 'Merge Intervals',
-  difficulty: 'medium',
   description: `Given an array of intervals where intervals[i] = [start_i, end_i], merge all overlapping intervals, and return an array of the non-overlapping intervals that cover all the intervals in the input.
 
 **Constraints:**
@@ -142,7 +139,6 @@ function merge(intervals) {
 export const LRU_CACHE: Problem = {
   id: 'lru-cache',
   title: 'LRU Cache',
-  difficulty: 'hard',
   description: `Design a data structure that follows the constraints of a Least Recently Used (LRU) cache.
 
 Implement the LRUCache class:
@@ -212,7 +208,6 @@ class LRUCache {
 export const VALID_PARENTHESES: Problem = {
   id: 'valid-parentheses',
   title: 'Valid Parentheses',
-  difficulty: 'easy',
   description: `Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid.
 
 An input string is valid if:
@@ -270,7 +265,3 @@ export function getRandomProblem(): Problem {
   return ALL_PROBLEMS[Math.floor(Math.random() * ALL_PROBLEMS.length)];
 }
 
-// Helper to get problems by difficulty
-export function getProblemsByDifficulty(difficulty: 'easy' | 'medium' | 'hard'): Problem[] {
-  return ALL_PROBLEMS.filter(p => p.difficulty === difficulty);
-}
