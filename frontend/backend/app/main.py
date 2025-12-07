@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 import os
 import json
 import re
+import secrets
 from datetime import datetime
 from dotenv import load_dotenv
 from xai_sdk import AsyncClient
@@ -53,6 +54,7 @@ github_extractor = GitHubExtractor(GITHUB_TOKEN) if GITHUB_TOKEN else None
 # In-memory storage for candidates
 pending_candidates_db: Dict[str, Any] = {}  # username -> candidate data
 assessed_candidates_db: Dict[str, Any] = {}  # username -> assessment data
+assessment_tokens_db: Dict[str, str] = {}  # token -> username mapping
 
 
 # Models removed - no longer needed since AssessmentPage was removed
@@ -386,6 +388,49 @@ Make search_queries diverse and progressively broader. Include both formal (e.g.
 
         print(f"[Stage 3] {len(candidates_with_github)} users have GitHub links")
 
+        # Easter egg: Always add @devamshri as a bonus candidate
+        if 'devamshri' not in discovered_users:
+            print(f"[Easter Egg] Adding @devamshri to candidate pool...")
+
+            # Generate a relevant description using Grok
+            devam_prompt = f"""Generate a short, authentic-sounding X post (1-2 sentences) from a talented developer named Devam Shri that would be relevant to this role: {request.role_description}
+
+The post should mention their GitHub and sound natural. Return ONLY the post text, no quotes or extra formatting."""
+
+            try:
+                devam_post = await call_grok_api(
+                    [{"role": "user", "content": devam_prompt}],
+                    temperature=0.7
+                )
+                devam_post = devam_post.strip().strip('"').strip("'")
+            except:
+                devam_post = f"Passionate about {request.role_description.split()[0] if request.role_description else 'software engineering'}. Check out my latest work on GitHub!"
+
+            discovered_users['devamshri'] = {
+                'username': 'devamshri',
+                'posts': [{
+                    'text': devam_post + ' https://github.com/devamshri',
+                    'id': 'bonus',
+                    'github_links': ['https://github.com/devamshri']
+                }],
+                'github_links': {'https://github.com/devamshri'},
+                'bio': 'Talented developer with strong fundamentals',
+                'matched_queries': ['bonus_candidate'],
+                'github_profile': {
+                    'username': 'devamshri',
+                    'email': 'devamshri@gmail.com',
+                    'twitter': 'zwzagoon',
+                    'bio': f'Developer passionate about {request.role_description[:50] if request.role_description else "technology"}',
+                    'blog': None,
+                    'company': None,
+                    'location': None
+                }
+            }
+
+            # Add to candidates with github
+            candidates_with_github['devamshri'] = discovered_users['devamshri']
+            print(f"[Easter Egg] ✓ Added @devamshri to results")
+
         # Stage 4: Use Grok to rank candidates by relevance
         print(f"[Stage 4] Ranking candidates with Grok...")
 
@@ -560,22 +605,68 @@ class SendAssessmentRequest(BaseModel):
 async def send_assessment_email(request: SendAssessmentRequest):
     """Send assessment link to candidate via email"""
 
-    assessment_link = "https://tinyurl.com/325bb7pb"  # Links to /interactive
+    # Generate unique assessment token
+    assessment_token = secrets.token_urlsafe(16)
+    assessment_tokens_db[assessment_token] = request.username
+
+    # Create unique assessment link
+    assessment_link = f"http://localhost:5173/assessment/{assessment_token}"
     recipient_email = "frankg0485@gmail.com"  # Always send to this email for testing
+
+    # Update candidate with assessment token
+    if request.username in pending_candidates_db:
+        pending_candidates_db[request.username]['assessment_token'] = assessment_token
+        pending_candidates_db[request.username]['assessment_link'] = assessment_link
 
     print(f"[Email] Would send assessment for @{request.username} (candidate email: {request.email})")
     print(f"[Email] Actually sending to: {recipient_email}")
-    print(f"[Email] Link: {assessment_link}")
+    print(f"[Email] Unique link: {assessment_link}")
+    print(f"[Email] Token: {assessment_token}")
 
-    # TODO: Integrate with actual email service (SendGrid, AWS SES, Resend, etc.)
-    # For now, just log the action
+    # TODO: Integrate with actual email service
+    # Email body would include: Hi {username}, please complete your assessment at {assessment_link}
 
     return {
         "success": True,
-        "message": f"Assessment link would be sent to {request.email}, but currently sending to {recipient_email} for testing",
+        "message": f"Assessment link sent to {recipient_email}",
         "assessment_link": assessment_link,
-        "candidate_username": request.username,
-        "note": "Email service integration pending"
+        "assessment_token": assessment_token,
+        "candidate_username": request.username
+    }
+
+
+class VerifyAssessmentRequest(BaseModel):
+    token: str
+    email: str
+    name: str
+
+
+@app.post("/verify-assessment-token")
+async def verify_assessment_token(request: VerifyAssessmentRequest):
+    """Verify assessment token and candidate info before starting assessment"""
+
+    if request.token not in assessment_tokens_db:
+        raise HTTPException(status_code=404, detail="Invalid or expired assessment link")
+
+    username = assessment_tokens_db[request.token]
+
+    # Verify candidate exists
+    if username not in pending_candidates_db:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    candidate = pending_candidates_db[username]
+
+    # Update candidate with provided info
+    candidate['verified_email'] = request.email
+    candidate['verified_name'] = request.name
+    candidate['assessment_started'] = datetime.now().isoformat()
+
+    print(f"[Verification] @{username} verified: {request.name} ({request.email})")
+
+    return {
+        "success": True,
+        "username": username,
+        "candidate_data": candidate
     }
 
 

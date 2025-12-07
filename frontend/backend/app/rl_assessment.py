@@ -1755,6 +1755,32 @@ Respond ONLY with valid JSON, no other text."""
                 "timestamp": datetime.now().isoformat(),
             }) + "\n")
 
+        # CRITICAL: Move candidate from pending to assessed if this was a token-based assessment
+        try:
+            # Import from main.py
+            from .main import pending_candidates_db, assessed_candidates_db, assessment_tokens_db
+
+            # Check if this candidate came from discovery
+            candidate_username = submission.candidateId  # Should match X username
+
+            if candidate_username in pending_candidates_db:
+                # Move to assessed
+                candidate_data = pending_candidates_db.pop(candidate_username)
+                candidate_data['assessment_id'] = assessment_id
+                candidate_data['status'] = 'assessed'
+                candidate_data['assessment_completed'] = datetime.now().isoformat()
+                candidate_data['code_score'] = code_score
+                candidate_data['response_score'] = response_score
+                candidate_data['final_score'] = final_score
+                candidate_data['recommendation'] = recommendation
+
+                assessed_candidates_db[candidate_username] = candidate_data
+
+                print(f"[Status Change] Moved @{candidate_username} from PENDING → ASSESSED")
+                print(f"[Status Change] Score: {final_score:.1f}/5, Recommendation: {recommendation}")
+        except Exception as e:
+            print(f"[Status Change] Error moving candidate status: {e}")
+
         return {
             "assessmentId": assessment_id,
             "summary": summary

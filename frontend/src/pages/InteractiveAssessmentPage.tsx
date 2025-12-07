@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Code2, Send, Activity, CheckCircle2, Circle, ChevronDown } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CodeEditor } from '../components/CodeEditor';
@@ -8,7 +8,6 @@ import { HintToast } from '../components/HintToast';
 import { InterventionModal } from '../components/InterventionModal';
 import { HintSystem } from '../components/HintSystem';
 import { CodeExecutionPanel } from '../components/CodeExecutionPanel';
-import { ResumeUploadModal } from '../components/ResumeUploadModal';
 import type { Problem, Intervention } from '../types';
 import type {
   ProgressMetrics,
@@ -26,6 +25,7 @@ const RL_API_BASE = 'http://localhost:8000/api/rl';
 
 export function InteractiveAssessmentPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const candidateInfo = (location.state as { candidateInfo?: CandidateInfo })?.candidateInfo;
 
   // Use default problem (can be randomized if desired)
@@ -35,8 +35,7 @@ export function InteractiveAssessmentPage() {
   const [language, setLanguage] = useState<'python' | 'java'>('python');
   const [code, setCode] = useState(initialProblem.starterCode.python || '');
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [showResumeModal, setShowResumeModal] = useState(true); // Show on load
-  const [hasUploadedResume, setHasUploadedResume] = useState(false);
+
 
   // Original intervention states
   const [currentHint, setCurrentHint] = useState<string | null>(null);
@@ -414,24 +413,24 @@ export function InteractiveAssessmentPage() {
     return { success: false, error: 'Execution failed' };
   };
 
-  const handleResumeUploaded = (questionData: any) => {
-    // Update problem with generated question
-    const customProblem: Problem = {
-      id: 'custom-resume-based',
-      title: questionData.problem_title,
-      description: questionData.problem_description,
-      starterCode: {
-        python: questionData.starter_code_python,
-        java: questionData.starter_code_java || questionData.starter_code_python
-      },
-      testCases: questionData.test_cases
-    };
-
-    setProblem(customProblem);
-    setCode(customProblem.starterCode[language]);
-    setShowResumeModal(false);
-    setHasUploadedResume(true);
-  };
+  // Load custom question from location state if provided (from AssessmentTokenPage)
+  useEffect(() => {
+    const customQuestion = (location.state as any)?.customQuestion;
+    if (customQuestion) {
+      const customProblem: Problem = {
+        id: 'custom-resume-based',
+        title: customQuestion.problem_title,
+        description: customQuestion.problem_description,
+        starterCode: {
+          python: customQuestion.starter_code_python,
+          java: customQuestion.starter_code_java || customQuestion.starter_code_python
+        },
+        testCases: customQuestion.test_cases
+      };
+      setProblem(customProblem);
+      setCode(customProblem.starterCode[language]);
+    }
+  }, []);
 
 
   const handleSubmit = async () => {
@@ -448,9 +447,9 @@ export function InteractiveAssessmentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          candidateId: candidateInfo?.email || 'demo-candidate',
-          candidateName: candidateInfo?.name || 'Demo Candidate',
-          candidateEmail: candidateInfo?.email || 'demo@example.com',
+          candidateId: (location.state as any)?.username || candidateInfo?.email || 'demo-candidate',
+          candidateName: (location.state as any)?.verifiedName || candidateInfo?.name || 'Demo Candidate',
+          candidateEmail: (location.state as any)?.verifiedEmail || candidateInfo?.email || 'demo@example.com',
           contactEmail: candidateInfo?.contactEmail || 'demo@example.com',
           problemId: problem.id,
           problemTitle: problem.title,
@@ -476,7 +475,14 @@ export function InteractiveAssessmentPage() {
 
       if (response.ok) {
         const data = await response.json();
-        window.location.href = `/results/${data.assessmentId}`;
+
+        // If this was a candidate assessment (has token), redirect to thank you page
+        const assessmentToken = (location.state as any)?.assessmentToken;
+        if (assessmentToken) {
+          navigate('/thank-you');
+        } else {
+          window.location.href = `/results/${data.assessmentId}`;
+        }
       }
     } catch (error) {
       console.error('Error submitting assessment:', error);
@@ -683,11 +689,6 @@ export function InteractiveAssessmentPage() {
         isOpen={isModalOpen}
       />
 
-      {/* Resume Upload Modal */}
-      <ResumeUploadModal
-        isOpen={showResumeModal}
-        onResumeUploaded={handleResumeUploaded}
-      />
     </div>
   );
 }

@@ -73,10 +73,25 @@ export function RecruiterDashboard() {
   const [showPending, setShowPending] = useState(true);
   const [showAssessed, setShowAssessed] = useState(true);
 
-  // Fetch assessments from backend
+  // Fetch assessments and candidates from backend
   useEffect(() => {
     fetchAssessments();
+    fetchAllCandidates();
   }, []);
+
+  const fetchAllCandidates = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/candidates/all');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingCandidates(data.pending || []);
+        // assessed candidates would come from data.assessed
+        console.log(`[Loaded] ${data.total_pending} pending, ${data.total_assessed} assessed candidates`);
+      }
+    } catch (error) {
+      console.error('Error fetching candidates:', error);
+    }
+  };
 
   // Fetch detailed data when a candidate is selected
   useEffect(() => {

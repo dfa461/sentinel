@@ -49,32 +49,20 @@ export function LandingPage() {
     },
     {
       icon: MessageSquare,
-      title: 'Socratic Learning',
-      description: 'Adaptive follow-up questions guide candidates without giving away solutions',
+      title: 'Adaptive Challenge Questions',
+      description: 'AI generates relevant follow-up questions based on code progress to probe understanding',
       color: 'from-blue-500 to-cyan-500',
     },
     {
       icon: Lightbulb,
       title: 'Smart Hints System',
-      description: 'Context-aware hints when candidates are stuck, with a 3-hint quota system',
+      description: 'Context-aware hints when candidates are stuck, available on-demand',
       color: 'from-yellow-500 to-orange-500',
-    },
-    {
-      icon: Activity,
-      title: 'Pause Detection',
-      description: 'Detects when candidates pause and asks about their thought process',
-      color: 'from-green-500 to-emerald-500',
-    },
-    {
-      icon: TrendingUp,
-      title: 'Reinforcement Learning',
-      description: 'Online RL adapts question difficulty based on performance in real-time',
-      color: 'from-red-500 to-rose-500',
     },
     {
       icon: BarChart3,
       title: 'Advanced Analytics',
-      description: 'Keystroke analytics, code complexity metrics, and progress tracking',
+      description: 'Code complexity metrics, execution tracking, and comprehensive evaluation reports',
       color: 'from-indigo-500 to-purple-500',
     },
   ];
@@ -102,12 +90,6 @@ export function LandingPage() {
     },
   ];
 
-  const stats = [
-    { label: 'AI Interventions', value: '5-10', suffix: 'per assessment' },
-    { label: 'Response Time', value: '<2s', suffix: 'AI feedback' },
-    { label: 'Success Rate', value: '85%', suffix: 'completion' },
-    { label: 'Insight Depth', value: '10x', suffix: 'vs traditional' },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-900 overflow-x-hidden">
@@ -171,8 +153,8 @@ export function LandingPage() {
             className="text-xl md:text-2xl text-slate-300 mb-12 max-w-3xl mx-auto leading-relaxed"
           >
             The next generation of technical assessments.{' '}
-            <span className="text-blue-400 font-semibold">Interactive AI coaching</span> meets{' '}
-            <span className="text-purple-400 font-semibold">Socratic learning</span> for deeper candidate insights.
+            <span className="text-blue-400 font-semibold">AI-powered candidate discovery</span> meets{' '}
+            <span className="text-purple-400 font-semibold">adaptive evaluation</span> for smarter hiring decisions.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -183,39 +165,13 @@ export function LandingPage() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20"
           >
             <button
-              onClick={handleStartAssessment}
-              className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center gap-3"
-            >
-              <Code2 className="w-6 h-6" />
-              Try Interactive Assessment
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
-
-            <button
               onClick={() => navigate('/results/demo')}
-              className="px-8 py-4 glass-effect border border-slate-700 hover:border-blue-500 text-white rounded-xl font-semibold text-lg transition-all flex items-center gap-3"
+              className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center gap-3"
             >
               <BarChart3 className="w-6 h-6" />
               View Recruiter Dashboard
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
-          </motion.div>
-
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto"
-          >
-            {stats.map((stat, idx) => (
-              <div key={idx} className="glass-effect rounded-xl p-6 border border-slate-700">
-                <div className="text-3xl font-bold text-gradient bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-1">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-slate-400">{stat.suffix}</div>
-                <div className="text-xs text-slate-500 mt-1">{stat.label}</div>
-              </div>
-            ))}
           </motion.div>
         </div>
 
@@ -250,15 +206,15 @@ export function LandingPage() {
               What is <span className="text-gradient">Sentinel</span>?
             </h2>
             <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-              Sentinel is an AI-enhanced online assessment platform that uses{' '}
-              <span className="text-blue-400 font-semibold">Reinforcement Learning</span> and{' '}
-              <span className="text-purple-400 font-semibold">Socratic questioning</span> to provide adaptive,
-              interactive coding assessments. It monitors candidate behavior in real-time, offers intelligent hints, and
-              generates comprehensive evaluation reports.
+              Sentinel is an AI-enhanced recruitment platform that discovers top engineering talent from X (Twitter),
+              enriches profiles with GitHub data, and provides{' '}
+              <span className="text-blue-400 font-semibold">adaptive coding assessments</span> with{' '}
+              <span className="text-purple-400 font-semibold">intelligent challenge questions</span>.
+              It monitors candidate behavior in real-time, offers smart hints, and generates comprehensive evaluation reports.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             {features.map((feature, idx) => (
               <motion.div
                 key={idx}
@@ -352,23 +308,23 @@ export function LandingPage() {
               <div className="space-y-6">
                 <div className="flex items-center gap-3 text-green-400">
                   <CheckCircle className="w-6 h-6" />
-                  <span className="font-semibold">Online Reinforcement Learning</span>
+                  <span className="font-semibold">X/Twitter Candidate Discovery</span>
                 </div>
                 <div className="flex items-center gap-3 text-blue-400">
                   <CheckCircle className="w-6 h-6" />
-                  <span className="font-semibold">Socratic Question Generation</span>
+                  <span className="font-semibold">Adaptive Challenge Questions</span>
                 </div>
                 <div className="flex items-center gap-3 text-purple-400">
                   <CheckCircle className="w-6 h-6" />
-                  <span className="font-semibold">Pause Detection (15s+)</span>
+                  <span className="font-semibold">GitHub Profile Enrichment</span>
                 </div>
                 <div className="flex items-center gap-3 text-pink-400">
                   <CheckCircle className="w-6 h-6" />
-                  <span className="font-semibold">Context-Aware Hints (3 max)</span>
+                  <span className="font-semibold">Context-Aware Hints</span>
                 </div>
                 <div className="flex items-center gap-3 text-yellow-400">
                   <CheckCircle className="w-6 h-6" />
-                  <span className="font-semibold">Keystroke Analytics</span>
+                  <span className="font-semibold">Code Execution & Testing</span>
                 </div>
                 <div className="flex items-center gap-3 text-cyan-400">
                   <CheckCircle className="w-6 h-6" />
@@ -456,22 +412,14 @@ export function LandingPage() {
                 Experience the future of technical assessments with AI-powered insights and adaptive learning
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                  onClick={handleStartAssessment}
-                  className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3"
-                >
-                  <Users className="w-6 h-6" />
-                  Start Assessment
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-
+              <div className="flex justify-center">
                 <button
                   onClick={() => navigate('/results/demo')}
-                  className="px-8 py-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-blue-500 text-white rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-3"
+                  className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3"
                 >
                   <Briefcase className="w-6 h-6" />
-                  Recruiter View
+                  View Recruiter Dashboard
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
             </div>
