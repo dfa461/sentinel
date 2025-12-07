@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, BarChart3, Brain, Zap, Trash2, ThumbsUp, ThumbsDown, CheckCircle2, Circle, Search, Mail, Twitter, Globe, MapPin, Building2, Github } from 'lucide-react';
+import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, BarChart3, Brain, Zap, Trash2, ThumbsUp, ThumbsDown, CheckCircle2, Circle, Search, Mail, Twitter, Globe, MapPin, Building2, Github } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { CandidateSearchModal } from '../components/CandidateSearchModal';
@@ -40,6 +40,23 @@ const formatRecommendation = (recommendation: string): string => {
   return rec.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+// Helper function to categorize relevance score into match levels
+const getMatchCategory = (score: number | null): { label: string; colorClass: string } => {
+  if (!score) return { label: 'Moderate', colorClass: 'bg-slate-500/20 text-slate-400 border-slate-500/30' };
+
+  if (score >= 8.5) {
+    return { label: 'Very Strong', colorClass: 'bg-green-500/20 text-green-400 border-green-500/30' };
+  } else if (score >= 7) {
+    return { label: 'Strong', colorClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+  } else if (score >= 5.5) {
+    return { label: 'Good', colorClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
+  } else if (score >= 4) {
+    return { label: 'Moderate', colorClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+  } else {
+    return { label: 'Weak', colorClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
+  }
+};
+
 interface Assessment {
   id: string;
   name: string;
@@ -65,8 +82,6 @@ export function RecruiterDashboard() {
   const [codeWeight, setCodeWeight] = useState(60);
   const [responseWeight, setResponseWeight] = useState(40);
   const [sortBy, setSortBy] = useState('Final Score');
-  const [sortOrder] = useState('Highest First');
-  const [topK, setTopK] = useState('All');
   const [detailedData, setDetailedData] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -945,25 +960,6 @@ export function RecruiterDashboard() {
                 <option>Response Score</option>
               </select>
             </div>
-
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-sm hover:bg-[#3a3a3a] transition-colors">
-              <ChevronDown className="w-4 h-4" />
-              <span>{sortOrder}</span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-slate-400" />
-            <span className="text-sm text-slate-300">Top K:</span>
-            <select
-              value={topK}
-              onChange={(e) => setTopK(e.target.value)}
-              className="px-4 py-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option>All</option>
-              <option>Top 3</option>
-              <option>Top 5</option>
-            </select>
           </div>
         </div>
       </div>
@@ -1043,9 +1039,9 @@ export function RecruiterDashboard() {
                       <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-semibold rounded-full border border-yellow-500/30">
                         PENDING
                       </span>
-                      {candidate.relevance_score && (
-                        <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-semibold rounded-full border border-blue-500/30">
-                          Match: {candidate.relevance_score.toFixed(1)}/10
+                      {candidate.relevance_score !== null && (
+                        <span className={cn("px-2 py-1 text-xs font-semibold rounded-full border", getMatchCategory(candidate.relevance_score).colorClass)}>
+                          {getMatchCategory(candidate.relevance_score).label}
                         </span>
                       )}
                     </div>
