@@ -1,4 +1,4 @@
-export type InterventionType = 'hint' | 'challenge' | 'warning';
+export type InterventionType = 'challenge';
 
 export interface Intervention {
   id: string;

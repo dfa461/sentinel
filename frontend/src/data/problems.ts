@@ -2,7 +2,7 @@ import type { Problem } from '../types';
 
 /**
  * Sample problems for the assessment platform.
- * Add your own problems here and import in AssessmentPage.tsx
+ * Add your own problems here and import in InteractiveAssessmentPage.tsx
  */
 
 export const BINARY_TREE_INVERT: Problem = {

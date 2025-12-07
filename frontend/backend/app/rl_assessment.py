@@ -379,19 +379,21 @@ Generate a helpful but not too revealing hint. The hint should:
 @router.post("/monitor-progress")
 async def monitor_progress(request: ProgressMonitorRequest):
     """
-    Monitor ongoing progress and provide quality feedback.
-    This is the continuous RL monitoring loop.
+    Monitor ongoing progress and generate challenge questions when appropriate.
+    This is the "Watcher" agent that probes candidate understanding.
     """
 
-    # Analyze code quality in real-time
-    quality_prompt = f"""You are monitoring a candidate's coding progress in real-time.
+    # Analyze code and determine if a challenge question is needed
+    watcher_prompt = f"""You are a technical interviewer AI analyzing a candidate's code in real-time during an assessment.
 
-**Code (in {request.language}):**
+**Problem:** {request.problem}
+
+**Current Code (in {request.language}):**
 ```{request.language}
 {request.code}
 ```
 
-**Progress:**
+**Progress Metrics:**
 - Lines: {request.progressMetrics.get('linesWritten', 0)}
 - Complexity: {request.progressMetrics.get('codeComplexity', 0)}
 - Changes: {request.progressMetrics.get('totalChanges', 0)}
@@ -399,22 +401,34 @@ async def monitor_progress(request: ProgressMonitorRequest):
 **Recent Events:**
 {json.dumps(request.monitoringEvents[-5:] if len(request.monitoringEvents) > 5 else request.monitoringEvents, indent=2)}
 
-**Task:**
-Quick assessment - should we intervene with quality feedback?
+**Your Task:**
+Analyze this code snippet and determine if a challenge question is needed. You should intervene with a challenge if:
+1. The candidate has written significant code and should be challenged to explain their reasoning
+2. The candidate appears to be making good progress and you want to probe their understanding
+3. The candidate has made an interesting design choice worth exploring
 
-**Respond with JSON:**
+**Important Guidelines:**
+- Ask thought-provoking questions like: "Why did you choose this approach?", "What edge cases haven't you considered?", "What's the time complexity?", "How would this scale?"
+- Don't intervene too frequently - let them code
+- Only use challenges to probe understanding, NOT to give hints (users can request hints separately)
+
+**Output Format (respond in JSON only):**
 {{
     "intervention_needed": true/false,
-    "type": "quality_feedback",
-    "content": "Brief suggestion if needed"
-}}"""
+    "type": "challenge",
+    "content": "Your challenge question here"
+}}
+
+Respond ONLY with valid JSON, no other text."""
 
     try:
         response = await call_grok_api(
-            [{"role": "user", "content": quality_prompt}],
-            temperature=0.4
+            [{"role": "user", "content": watcher_prompt}],
+            temperature=0.5
         )
 
+        # Parse JSON response
+        # Try to extract JSON if Grok adds extra text
         json_start = response.find("{")
         json_end = response.rfind("}") + 1
         if json_start != -1 and json_end > json_start:

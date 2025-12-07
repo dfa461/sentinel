@@ -272,9 +272,19 @@ export function InteractiveAssessmentPage() {
         if (response.ok) {
           const data = await response.json();
 
-          // Handle quality check interventions
-          if (data.intervention_needed && data.type === 'quality_feedback') {
-            setCurrentHint(data.content);
+          // Handle challenge interventions
+          if (data.intervention_needed && data.type === 'challenge') {
+            const intervention: Intervention = {
+              id: Date.now().toString(),
+              type: 'challenge',
+              title: 'AI Challenge Question',
+              content: data.content,
+              timestamp: Date.now(),
+              mandatory: true,
+              voiceResponse: true,
+            };
+            setCurrentIntervention(intervention);
+            setIsModalOpen(true);
           }
         }
       } catch (error) {
