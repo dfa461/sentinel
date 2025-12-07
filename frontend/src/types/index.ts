@@ -42,7 +42,7 @@ export interface Problem {
   id: string;
   title: string;
   description: string;
-  starterCode: Record<string, string>; // language -> code
+  starterCode: Record<string, string>; // Python code only
   testCases?: Array<{
     input: string;
     output: string;

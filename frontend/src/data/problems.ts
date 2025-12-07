@@ -29,16 +29,6 @@ class TreeNode:
 def invertTree(root: TreeNode) -> TreeNode:
     # Your code here
     pass`,
-    javascript: `// Definition for a binary tree node.
-function TreeNode(val, left, right) {
-    this.val = (val===undefined ? 0 : val)
-    this.left = (left===undefined ? null : left)
-    this.right = (right===undefined ? null : right)
-}
-
-function invertTree(root) {
-    // Your code here
-}`,
   },
   testCases: [
     {
@@ -75,14 +65,6 @@ Can you come up with an algorithm that is less than O(n^2) time complexity?`,
 def twoSum(nums: List[int], target: int) -> List[int]:
     # Your code here
     pass`,
-    javascript: `/**
- * @param {number[]} nums
- * @param {number} target
- * @return {number[]}
- */
-function twoSum(nums, target) {
-    // Your code here
-}`,
   },
   testCases: [
     {
@@ -116,13 +98,6 @@ Explanation: Since intervals [1,3] and [2,6] overlap, merge them into [1,6].`,
 def merge(intervals: List[List[int]]) -> List[List[int]]:
     # Your code here
     pass`,
-    javascript: `/**
- * @param {number[][]} intervals
- * @return {number[][]}
- */
-function merge(intervals) {
-    // Your code here
-}`,
   },
   testCases: [
     {
@@ -167,31 +142,6 @@ The functions get and put must each run in O(1) average time complexity.
     def put(self, key: int, value: int) -> None:
         # Your code here
         pass`,
-    javascript: `/**
- * @param {number} capacity
- */
-class LRUCache {
-    constructor(capacity) {
-        // Your code here
-    }
-
-    /**
-     * @param {number} key
-     * @return {number}
-     */
-    get(key) {
-        // Your code here
-    }
-
-    /**
-     * @param {number} key
-     * @param {number} value
-     * @return {void}
-     */
-    put(key, value) {
-        // Your code here
-    }
-}`,
   },
   testCases: [
     {
@@ -222,13 +172,6 @@ An input string is valid if:
     python: `def isValid(s: str) -> bool:
     # Your code here
     pass`,
-    javascript: `/**
- * @param {string} s
- * @return {boolean}
- */
-function isValid(s) {
-    // Your code here
-}`,
   },
   testCases: [
     {

@@ -1,4 +1,4 @@
-import { BookOpen, Clock, TrendingUp } from 'lucide-react';
+import { BookOpen, Clock } from 'lucide-react';
 import type { Problem } from '../types';
 
 interface ProblemPanelProps {
@@ -17,7 +17,7 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
     <div className="h-full flex flex-col bg-slate-900/50">
       {/* Header */}
       <div className="glass-effect border-b border-slate-700 p-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="bg-blue-500/20 p-2.5 rounded-lg">
               <BookOpen className="w-5 h-5 text-blue-400" />
@@ -26,16 +26,9 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
               {problem.title}
             </h2>
           </div>
-        </div>
-
-        <div className="flex items-center gap-6 text-sm">
           <div className="flex items-center gap-2 text-slate-400">
             <Clock className="w-4 h-4" />
-            <span className="font-mono">{formatTime(elapsedTime)}</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-400">
-            <TrendingUp className="w-4 h-4" />
-            <span>AI is watching</span>
+            <span className="font-mono text-sm">{formatTime(elapsedTime)}</span>
           </div>
         </div>
       </div>
@@ -74,26 +67,6 @@ export function ProblemPanel({ problem, elapsedTime }: ProblemPanelProps) {
             ))}
           </div>
         )}
-
-        {/* AI Coaching Notice */}
-        <div className="glass-effect rounded-xl p-4 border-l-4 border-purple-500">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 mt-0.5">
-              <div className="bg-purple-500/20 p-2 rounded-lg">
-                <TrendingUp className="w-4 h-4 text-purple-400" />
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-purple-400 mb-1">
-                AI-Assisted Assessment
-              </h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                This assessment uses AI to provide real-time hints and ask follow-up questions.
-                The AI monitors your progress to help you succeed while evaluating your problem-solving approach.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

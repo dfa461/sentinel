@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Code2, Send, Activity, Brain } from 'lucide-react';
+import { Code2, Send, Activity } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CodeEditor } from '../components/CodeEditor';
 import { ProblemPanel } from '../components/ProblemPanel';
@@ -31,7 +31,7 @@ const ASSESSMENT_GRACE_PERIOD = 300000; // 5 minutes before starting pause detec
 
 export function InteractiveAssessmentPage() {
   const [problem] = useState<Problem>(MERGE_INTERVALS);
-  const [language, setLanguage] = useState('python');
+  const language = 'python'; // Fixed to Python only
   const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -436,10 +436,6 @@ export function InteractiveAssessmentPage() {
     return { success: false, error: 'Execution failed' };
   };
 
-  const handleLanguageChange = (newLang: string) => {
-    setLanguage(newLang);
-    setCode(MERGE_INTERVALS.starterCode[newLang] || '');
-  };
 
   const handleSubmit = async () => {
     // Submit assessment with all RL data
@@ -494,24 +490,6 @@ export function InteractiveAssessmentPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="glass-effect px-4 py-2 rounded-lg border border-slate-700">
-              <div className="flex items-center gap-2">
-                <Brain className="w-4 h-4 text-purple-400" />
-                <span className="text-sm text-slate-300">
-                  AI actively monitoring
-                </span>
-              </div>
-            </div>
-
-            <select
-              value={language}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
-            </select>
-
             <button
               onClick={handleSubmit}
               className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-green-500/50"

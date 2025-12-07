@@ -13,7 +13,7 @@ const API_BASE = 'http://localhost:8000';
 
 export function AssessmentPage() {
   const [problem] = useState<Problem>(MERGE_INTERVALS);
-  const [language, setLanguage] = useState('python');
+  const language = 'python'; // Fixed to Python only
   const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentHint, setCurrentHint] = useState<string | null>(null);
@@ -91,10 +91,6 @@ export function AssessmentPage() {
     sendSnapshot(newCode);
   };
 
-  const handleLanguageChange = (newLang: string) => {
-    setLanguage(newLang);
-    setCode(MERGE_INTERVALS.starterCode[newLang] || '');
-  };
 
   const handleInterventionResponse = (response: string, isVoice: boolean) => {
     if (!currentIntervention) return;
@@ -189,15 +185,6 @@ export function AssessmentPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <select
-              value={language}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="python">Python</option>
-              <option value="javascript">JavaScript</option>
-            </select>
-
             <button
               onClick={handleRunCode}
               disabled={isRunning}
