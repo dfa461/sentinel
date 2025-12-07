@@ -19,55 +19,7 @@ import type {
   MonitoringEvent,
   RLFeedbackSignal,
 } from '../types/monitoring';
-
-// Mock problem for demo
-const MOCK_PROBLEM: Problem = {
-  id: 'binary-tree-invert',
-  title: 'Invert Binary Tree',
-  difficulty: 'medium',
-  description: `Given the root of a binary tree, invert the tree, and return its root.
-
-Inverting a binary tree means swapping the left and right children of all nodes in the tree.
-
-**Constraints:**
-- The number of nodes in the tree is in the range [0, 100].
-- -100 <= Node.val <= 100
-
-**Follow-up:**
-Can you solve this both recursively and iteratively?`,
-  starterCode: {
-    python: `# Definition for a binary tree node.
-class TreeNode:
-    def __init__(self, val=0, left=None, right=None):
-        self.val = val
-        self.left = left
-        self.right = right
-
-def invertTree(root: TreeNode) -> TreeNode:
-    # Your code here
-    pass`,
-    javascript: `// Definition for a binary tree node.
-function TreeNode(val, left, right) {
-    this.val = (val===undefined ? 0 : val)
-    this.left = (left===undefined ? null : left)
-    this.right = (right===undefined ? null : right)
-}
-
-function invertTree(root) {
-    // Your code here
-}`,
-  },
-  testCases: [
-    {
-      input: 'root = [4,2,7,1,3,6,9]',
-      output: '[4,7,2,9,6,3,1]',
-    },
-    {
-      input: 'root = [2,1,3]',
-      output: '[2,3,1]',
-    },
-  ],
-};
+import { MERGE_INTERVALS } from '../data/problems';
 
 const API_BASE = 'http://localhost:8000';
 const RL_API_BASE = 'http://localhost:8000/api/rl';
@@ -78,9 +30,9 @@ const PAUSE_COOLDOWN = 300000; // 5 minutes between pause interventions
 const ASSESSMENT_GRACE_PERIOD = 300000; // 5 minutes before starting pause detection
 
 export function InteractiveAssessmentPage() {
-  const [problem] = useState<Problem>(MOCK_PROBLEM);
+  const [problem] = useState<Problem>(MERGE_INTERVALS);
   const [language, setLanguage] = useState('python');
-  const [code, setCode] = useState(MOCK_PROBLEM.starterCode.python);
+  const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Original intervention states
@@ -442,7 +394,7 @@ export function InteractiveAssessmentPage() {
         body: JSON.stringify({
           code,
           language,
-          problemId: problem.id,
+          testCases: problem.testCases || [],
         }),
       });
 
@@ -486,7 +438,7 @@ export function InteractiveAssessmentPage() {
 
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
-    setCode(MOCK_PROBLEM.starterCode[newLang] || '');
+    setCode(MERGE_INTERVALS.starterCode[newLang] || '');
   };
 
   const handleSubmit = async () => {
