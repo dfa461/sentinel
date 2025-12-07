@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, Share2, Download, Sun, BarChart3, Brain, Clock, Zap, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, BarChart3, Brain, Clock, Zap, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -155,19 +155,6 @@ export function RecruiterDashboard() {
                     <span>{selectedCandidate.problem}</span>
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors">
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </button>
-                <button className="flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg text-sm transition-colors">
-                  <Download className="w-4 h-4" />
-                  Export
-                </button>
-                <button className="p-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] rounded-lg transition-colors">
-                  <Sun className="w-4 h-4" />
-                </button>
               </div>
             </div>
           </div>
