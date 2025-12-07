@@ -18,6 +18,7 @@ import { cn } from '../lib/utils';
 import type { AssessmentSummary } from '../types';
 
 const API_BASE = 'http://localhost:8000';
+const RL_API_BASE = 'http://localhost:8000/api/rl';
 
 export function RecruiterDashboard() {
   const { assessmentId } = useParams<{ assessmentId: string }>();
@@ -30,7 +31,13 @@ export function RecruiterDashboard() {
 
   const fetchSummary = async () => {
     try {
-      const response = await fetch(`${API_BASE}/assessment/${assessmentId}`);
+      // Check if this is an RL assessment (starts with "rl_assess_")
+      const isRLAssessment = assessmentId?.startsWith('rl_assess_');
+      const endpoint = isRLAssessment
+        ? `${RL_API_BASE}/assessment/${assessmentId}`
+        : `${API_BASE}/assessment/${assessmentId}`;
+
+      const response = await fetch(endpoint);
       if (response.ok) {
         const data = await response.json();
         setSummary(data);
@@ -125,11 +132,17 @@ export function RecruiterDashboard() {
     return `${mins}m ${secs}s`;
   };
 
-  // Chart data
-  const chartData = summary.codeEvolution.map((snapshot, idx) => ({
-    time: idx,
-    progress: (snapshot.code.length / (summary.finalCode.length || 1)) * 100,
-  }));
+  // Chart data - handle both regular and RL assessments
+  const isRLAssessment = assessmentId?.startsWith('rl_assess_');
+  const chartData = isRLAssessment
+    ? (summary.monitoringEvents || []).map((event: any, idx: number) => ({
+        time: idx,
+        progress: ((idx + 1) / (summary.monitoringEvents?.length || 1)) * 100,
+      }))
+    : (summary.codeEvolution || []).map((snapshot: any, idx: number) => ({
+        time: idx,
+        progress: (snapshot.code.length / (summary.finalCode?.length || 1)) * 100,
+      }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -182,20 +195,30 @@ export function RecruiterDashboard() {
           <div className="glass-effect rounded-xl p-6 border border-slate-700">
             <div className="flex items-center gap-3 mb-2">
               <MessageSquare className="w-5 h-5 text-purple-400" />
-              <span className="text-sm text-slate-400">Interventions</span>
+              <span className="text-sm text-slate-400">
+                {isRLAssessment ? 'Hints Used' : 'Interventions'}
+              </span>
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.interventions.length}
+              {isRLAssessment
+                ? (summary.hintsUsed?.length || 0)
+                : (summary.interventions?.length || 0)
+              }
             </p>
           </div>
 
           <div className="glass-effect rounded-xl p-6 border border-slate-700">
             <div className="flex items-center gap-3 mb-2">
               <Code2 className="w-5 h-5 text-green-400" />
-              <span className="text-sm text-slate-400">Code Snapshots</span>
+              <span className="text-sm text-slate-400">
+                {isRLAssessment ? 'Monitoring Events' : 'Code Snapshots'}
+              </span>
             </div>
             <p className="text-2xl font-bold text-white">
-              {summary.codeEvolution.length}
+              {isRLAssessment
+                ? (summary.monitoringEvents?.length || 0)
+                : (summary.codeEvolution?.length || 0)
+              }
             </p>
           </div>
 
@@ -291,50 +314,81 @@ export function RecruiterDashboard() {
           </div>
         </div>
 
-        {/* Interventions & Responses */}
+        {/* Interventions & Responses / RL Insights */}
         <div className="glass-effect rounded-xl p-6 border border-slate-700">
           <h3 className="text-lg font-semibold text-white mb-4">
-            AI Interventions & Candidate Responses
+            {isRLAssessment ? 'RL Assessment Insights' : 'AI Interventions & Candidate Responses'}
           </h3>
           <div className="space-y-4">
-            {summary.interventions.map((intervention) => {
-              const response = summary.responses.find(
-                (r) => r.interventionId === intervention.id
-              );
-
-              return (
-                <div
-                  key={intervention.id}
-                  className="bg-slate-800/50 rounded-lg p-4 border border-slate-700"
-                >
-                  <div className="flex items-start gap-3 mb-3">
-                    <MessageSquare className="w-4 h-4 text-purple-400 mt-1" />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-purple-400">
-                          {intervention.title}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {formatTime(intervention.timestamp)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-300">{intervention.content}</p>
-                    </div>
+            {isRLAssessment ? (
+              // RL Assessment View
+              <>
+                {summary.hintsUsed && summary.hintsUsed.length > 0 && (
+                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                    <h4 className="font-semibold text-purple-400 mb-2">Hints Used</h4>
+                    <ul className="space-y-2">
+                      {summary.hintsUsed.map((hint: any, idx: number) => (
+                        <li key={idx} className="text-sm text-slate-300">
+                          • {hint.content || hint}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
+                )}
+                {summary.rlInsights && (
+                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                    <h4 className="font-semibold text-blue-400 mb-2">RL Insights</h4>
+                    <p className="text-sm text-slate-300">{summary.rlInsights}</p>
+                  </div>
+                )}
+                {summary.learningTrajectory && (
+                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                    <h4 className="font-semibold text-green-400 mb-2">Learning Trajectory</h4>
+                    <p className="text-sm text-slate-300">{summary.learningTrajectory}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Regular Assessment View
+              (summary.interventions || []).map((intervention: any) => {
+                const response = (summary.responses || []).find(
+                  (r: any) => r.interventionId === intervention.id
+                );
 
-                  {response && (
-                    <div className="ml-7 pl-4 border-l-2 border-blue-500/30">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold text-blue-400">
-                          Candidate Response {response.isVoice ? '(Voice)' : '(Text)'}
-                        </span>
+                return (
+                  <div
+                    key={intervention.id}
+                    className="bg-slate-800/50 rounded-lg p-4 border border-slate-700"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <MessageSquare className="w-4 h-4 text-purple-400 mt-1" />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-purple-400">
+                            {intervention.title}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {formatTime(intervention.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-300">{intervention.content}</p>
                       </div>
-                      <p className="text-sm text-slate-300">{response.response}</p>
                     </div>
-                  )}
-                </div>
-              );
-            })}
+
+                    {response && (
+                      <div className="ml-7 pl-4 border-l-2 border-blue-500/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-blue-400">
+                            Candidate Response {response.isVoice ? '(Voice)' : '(Text)'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-300">{response.response}</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

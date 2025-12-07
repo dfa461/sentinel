@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
-import httpx
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -13,13 +12,17 @@ import subprocess
 import tempfile
 import time
 import re
+from xai_sdk import AsyncClient
+from xai_sdk.chat import user, system
 
 load_dotenv()
 
 router = APIRouter(prefix="/api/rl", tags=["rl-assessment"])
 
 GROK_API_KEY = os.getenv("GROK_API_KEY")
-GROK_API_URL = os.getenv("GROK_API_URL", "https://api.x.ai/v1/chat/completions")
+
+# Create global xAI client
+xai_client = AsyncClient(api_key=GROK_API_KEY)
 
 # RL State tracking
 rl_state_db: Dict[str, Any] = {}
@@ -98,25 +101,29 @@ async def call_grok_api(messages: List[Dict[str, str]], temperature: float = 0.7
     if not GROK_API_KEY:
         raise HTTPException(status_code=500, detail="Grok API key not configured")
 
-    headers = {
-        "Authorization": f"Bearer {GROK_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    try:
+        # Convert simple dict messages to SDK objects
+        sdk_messages = []
+        for msg in messages:
+            if msg["role"] == "user":
+                sdk_messages.append(user(msg["content"]))
+            elif msg["role"] == "system":
+                sdk_messages.append(system(msg["content"]))
+            # Add other roles if needed, but for now we mainly use user/system
 
-    payload = {
-        "model": "grok-beta",
-        "messages": messages,
-        "temperature": temperature,
-    }
+        # Create chat session
+        chat = xai_client.chat.create(
+            model="grok-3",
+            messages=sdk_messages,
+            temperature=temperature
+        )
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            response = await client.post(GROK_API_URL, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        except httpx.HTTPError as e:
-            raise HTTPException(status_code=500, detail=f"Grok API error: {str(e)}")
+        # Get response
+        response = await chat.sample()
+        return response.content
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Grok API error: {str(e)}")
 
 
 @router.post("/generate-socratic-question")
@@ -748,6 +755,15 @@ This is an advanced RL-based assessment. Consider:
     except Exception as e:
         print(f"Error submitting RL assessment: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to submit assessment: {str(e)}")
+
+
+@router.get("/assessment/{assessment_id}")
+async def get_rl_assessment(assessment_id: str):
+    """Get RL assessment summary for recruiter dashboard"""
+    if assessment_id not in rl_state_db:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    return rl_state_db[assessment_id]
 
 
 @router.get("/rl-training-stats")
