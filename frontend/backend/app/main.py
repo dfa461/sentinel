@@ -114,151 +114,299 @@ async def root():
 @app.post("/search-candidates")
 async def search_candidates(request: RoleSearchRequest):
     """
-    Search X posts for candidates matching a role description.
-    Uses X API (via xdk) + xAI for relevance filtering.
+    Discover candidates organically from X based on role description.
+    Pipeline: JD parsing → keyword extraction → X search → bio analysis → GitHub extraction → relevance ranking
     """
 
     if not x_client:
         raise HTTPException(status_code=500, detail="X API not configured. Set X_BEARER_TOKEN environment variable.")
 
-    # Hardcoded list of X handles to search from (tech influencers, developers)
-    TARGET_HANDLES = [
-        "frankg0485"
-    ]
-
     try:
-        all_posts = []
+        # Stage 1: Parse Job Description and extract technical keywords using Grok
+        print(f"[Stage 1] Parsing job description...")
 
-        # Search posts from each target handle
-        for handle in TARGET_HANDLES:
-            try:
-                # Build query: posts from this user (broaden search, filter for github later)
-                query = f"from:{handle}"
+        jd_parsing_prompt = f"""Analyze this job description and extract search keywords for finding candidates on X (Twitter):
 
-                # Search recent posts (last 7 days) - works on free tier
-                for page in x_client.posts.search_recent(
-                    query=query,
-                    max_results=10,  # Per page
-                    tweet_fields=["created_at", "text", "author_id"],
-                    expansions=["author_id"],
-                    user_fields=["username"]
-                ):
-                    # Access data attribute from each page
-                    page_data = getattr(page, 'data', []) or []
-                    print(f"[X Search] @{handle}: Page has {len(page_data)} posts")
+Job Description: {request.role_description}
 
-                    posts_with_github = 0
-                    for post in page_data:
-                        # Handle both dict and object access
-                        post_id = post.get('id') if isinstance(post, dict) else post.id
-                        post_text = post.get('text') if isinstance(post, dict) else post.text
-                        created_at = post.get('created_at') if isinstance(post, dict) else getattr(post, 'created_at', None)
+Extract:
+1. Core technical skills (languages, frameworks, tools)
+2. Domain keywords (ML, systems, frontend, etc.)
+3. Seniority indicators (senior, staff, principal)
+4. Specific technologies mentioned
 
-                        # Find all URLs in the post (including t.co)
-                        all_urls = re.findall(r'https?://[^\s\)]+', post_text)
-                        github_links = []
+Return ONLY a JSON object:
+{{
+    "primary_keywords": ["keyword1", "keyword2", "keyword3"],
+    "technical_terms": ["term1", "term2"],
+    "search_queries": ["query1 for X search", "query2 for X search", ...]
+}}
 
-                        for url in all_urls:
-                            # If it's already a GitHub link, use it
-                            if 'github.com' in url:
-                                github_links.append(url)
-                            # If it's a t.co link, expand it to see if it points to GitHub
-                            elif 't.co' in url:
-                                expanded_url = await expand_short_url(url)
-                                print(f"[URL Expand] {url} -> {expanded_url}")
-                                if 'github.com' in expanded_url:
-                                    github_links.append(expanded_url)
+The search_queries should be optimized for finding engineers on X who work in this domain."""
 
-                        if github_links:
-                            posts_with_github += 1
-                            all_posts.append({
-                                'username': handle,
-                                'post_text': post_text,
-                                'post_id': post_id,
-                                'github_links': github_links,
-                                'created_at': created_at
-                            })
+        jd_response = await call_grok_api(
+            [{"role": "user", "content": jd_parsing_prompt}],
+            temperature=0.3
+        )
 
-                    # Only get first page per user
+        # Parse JD analysis
+        json_match = re.search(r'\{.*\}', jd_response, re.DOTALL)
+        if not json_match:
+            raise HTTPException(status_code=500, detail="Failed to parse job description")
+
+        jd_profile = json.loads(json_match.group(0))
+        print(f"[Stage 1] Keywords: {jd_profile.get('primary_keywords', [])}")
+        print(f"[Stage 1] Search queries: {jd_profile.get('search_queries', [])}")
+
+        # Stage 2: Discover candidates via X API search with progressive broadening
+        print(f"[Stage 2] Discovering candidates via X search...")
+
+        discovered_users = {}  # username -> {posts, bio, github_links}
+        search_queries = jd_profile.get('search_queries', [])
+
+        TARGET_USERS = request.max_results * 3  # Try to find 3x more users than needed
+        MAX_USERS = 50  # Hard cap to avoid too many API calls
+
+        # Progressive broadening strategy
+        search_attempts = [
+            {
+                'queries': search_queries[:2],  # Most specific queries
+                'suffix': ' github.com -is:retweet',  # Must have GitHub
+                'max_results': 20,
+                'description': 'Specific + GitHub required'
+            },
+            {
+                'queries': search_queries[:3],  # Broader set of queries
+                'suffix': ' -is:retweet',  # No GitHub requirement
+                'max_results': 30,
+                'description': 'Broader search, no GitHub filter'
+            },
+            {
+                'queries': jd_profile.get('primary_keywords', [])[:2],  # Just keywords
+                'suffix': ' -is:retweet',
+                'max_results': 50,
+                'description': 'Keyword-based, very broad'
+            }
+        ]
+
+        for attempt in search_attempts:
+            if len(discovered_users) >= TARGET_USERS:
+                print(f"[Stage 2] Found enough users ({len(discovered_users)}), stopping search")
+                break
+
+            print(f"[Stage 2] Attempt: {attempt['description']}")
+
+            for search_query in attempt['queries']:
+                if len(discovered_users) >= MAX_USERS:
                     break
 
-                print(f"[X Search] @{handle}: {posts_with_github} posts with GitHub links")
+                try:
+                    full_query = search_query + attempt['suffix']
+                    print(f"[Stage 2] Searching: {full_query}")
+
+                    # Search posts matching the query
+                    for page in x_client.posts.search_recent(
+                        query=full_query,
+                        max_results=attempt['max_results'],
+                        tweet_fields=["created_at", "text", "author_id"],
+                        expansions=["author_id"],
+                        user_fields=["username", "description"]
+                    ):
+                        # Access data from page
+                        page_data = getattr(page, 'data', []) or []
+                        includes = getattr(page, 'includes', {})
+                        users_data = includes.get('users', []) if isinstance(includes, dict) else []
+
+                        print(f"[Stage 2] Query '{full_query[:60]}...' -> {len(page_data)} posts")
+
+                        for post in page_data:
+                            if len(discovered_users) >= MAX_USERS:
+                                break
+
+                            # Handle both dict and object access
+                            post_id = post.get('id') if isinstance(post, dict) else post.id
+                            post_text = post.get('text') if isinstance(post, dict) else post.text
+                            author_id = post.get('author_id') if isinstance(post, dict) else getattr(post, 'author_id', None)
+
+                            # Get author username from includes
+                            author_username = None
+                            for user in users_data:
+                                user_id = user.get('id') if isinstance(user, dict) else user.id
+                                if user_id == author_id:
+                                    author_username = user.get('username') if isinstance(user, dict) else user.username
+                                    break
+
+                            if not author_username:
+                                continue
+
+                            # Find all URLs in the post (including t.co)
+                            all_urls = re.findall(r'https?://[^\s\)]+', post_text)
+                            github_links = []
+
+                            for url in all_urls:
+                                if 'github.com' in url:
+                                    github_links.append(url)
+                                elif 't.co' in url:
+                                    expanded_url = await expand_short_url(url)
+                                    if 'github.com' in expanded_url:
+                                        github_links.append(expanded_url)
+
+                            # Build user profile
+                            if author_username not in discovered_users:
+                                discovered_users[author_username] = {
+                                    'username': author_username,
+                                    'posts': [],
+                                    'github_links': set(),
+                                    'bio': None,
+                                    'matched_queries': []
+                                }
+
+                            # Add post to user profile
+                            if github_links or len(post_text) > 100:  # Substantial technical posts
+                                discovered_users[author_username]['posts'].append({
+                                    'text': post_text,
+                                    'id': post_id,
+                                    'github_links': github_links
+                                })
+                                discovered_users[author_username]['github_links'].update(github_links)
+                                if full_query not in discovered_users[author_username]['matched_queries']:
+                                    discovered_users[author_username]['matched_queries'].append(full_query)
+
+                        # Only get first page per query
+                        break
+
+                    print(f"[Stage 2] Query found {len(discovered_users)} total users so far")
+
+                except Exception as e:
+                    print(f"[Stage 2] Error with query '{search_query}': {e}")
+                    continue
+
+        print(f"[Stage 2] Discovered {len(discovered_users)} unique users")
+
+        # Stage 3: Enrich with bio analysis
+        print(f"[Stage 3] Fetching user bios...")
+
+        usernames_to_lookup = list(discovered_users.keys())[:50]  # Limit API calls
+        if usernames_to_lookup:
+            try:
+                users_response = x_client.users.get_by_usernames(
+                    usernames=usernames_to_lookup,
+                    user_fields=["description", "url", "public_metrics"]
+                )
+
+                for user in getattr(users_response, 'data', []) or []:
+                    username = user.get('username') if isinstance(user, dict) else user.username
+                    bio = user.get('description') if isinstance(user, dict) else getattr(user, 'description', '')
+
+                    if username in discovered_users:
+                        discovered_users[username]['bio'] = bio
+
+                        # Extract GitHub from bio
+                        bio_github = re.findall(r'github\.com/([^\s\)\/]+)', bio)
+                        for gh_user in bio_github:
+                            discovered_users[username]['github_links'].add(f"https://github.com/{gh_user}")
+
+                print(f"[Stage 3] Enriched {len(usernames_to_lookup)} user profiles with bios")
 
             except Exception as e:
-                print(f"[X Search] Error searching @{handle}: {e}")
-                continue
+                print(f"[Stage 3] Error fetching bios: {e}")
 
-        print(f"[X Search] Total posts with GitHub links: {len(all_posts)}")
+        # Filter: Only keep users with GitHub links
+        candidates_with_github = {
+            user: data for user, data in discovered_users.items()
+            if data['github_links']
+        }
 
-        # Use Grok to filter and rank by relevance to role description
-        if all_posts and GROK_API_KEY:
+        print(f"[Stage 3] {len(candidates_with_github)} users have GitHub links")
+
+        # Stage 4: Use Grok to rank candidates by relevance
+        print(f"[Stage 4] Ranking candidates with Grok...")
+
+        if candidates_with_github and GROK_API_KEY:
             try:
-                posts_summary = "\n\n".join([
-                    f"Post {i+1} - @{p['username']}:\n{p['post_text']}\nGitHub: {', '.join(p['github_links'])}"
-                    for i, p in enumerate(all_posts[:20])  # Send top 20 to Grok for filtering
-                ])
+                # Build candidate summaries for Grok
+                candidate_summaries = []
+                for i, (username, data) in enumerate(list(candidates_with_github.items())[:20], 1):
+                    summary = f"""Candidate {i} - @{username}
+Bio: {data['bio'] or 'N/A'}
+GitHub: {', '.join(list(data['github_links'])[:3])}
+Sample Posts: {' | '.join([p['text'][:80] for p in data['posts'][:2]])}
+Matched Queries: {', '.join(data['matched_queries'])}"""
+                    candidate_summaries.append(summary)
 
-                filtering_prompt = f"""You are analyzing X posts to find candidates for this role:
-{request.role_description}
+                ranking_prompt = f"""Analyze these X users to find the best candidates for this role:
 
-Here are posts from tech professionals that mention GitHub:
+Role: {request.role_description}
 
-{posts_summary}
+Candidates:
+{chr(10).join(candidate_summaries)}
 
-Rate each post's relevance to the role on a scale of 0-10. Return ONLY a JSON array with post numbers and scores:
+Rate each candidate's relevance (0-10) based on:
+1. Bio signals (current role, expertise mentioned)
+2. Post content (technical depth, GitHub activity)
+3. GitHub presence
+
+Return ONLY a JSON array:
 [
-  {{"post": 1, "score": 8.5, "reason": "Strong PyTorch experience shown"}},
-  {{"post": 2, "score": 5.0, "reason": "Some ML background"}},
+  {{"candidate": 1, "score": 9.0, "reason": "Active PyTorch contributor"}},
+  {{"candidate": 2, "score": 7.5, "reason": "ML background, some relevant posts"}},
   ...
 ]
 
-Include only posts with score >= 6.0. Limit to top {request.max_results} posts."""
+Include only candidates with score >= 6.0. Limit to top {request.max_results}."""
 
                 grok_response = await call_grok_api(
-                    [{"role": "user", "content": filtering_prompt}],
+                    [{"role": "user", "content": ranking_prompt}],
                     temperature=0.3
                 )
 
-                # Parse Grok's relevance scores
+                # Parse rankings
                 json_match = re.search(r'\[.*\]', grok_response, re.DOTALL)
                 if json_match:
                     rankings = json.loads(json_match.group(0))
 
-                    # Map back to original posts and sort by score
-                    ranked_posts = []
+                    # Apply scores
+                    username_list = list(candidates_with_github.keys())
                     for ranking in rankings:
-                        post_idx = ranking['post'] - 1  # Convert to 0-indexed
-                        if 0 <= post_idx < len(all_posts):
-                            post = all_posts[post_idx]
-                            post['relevance_score'] = ranking['score']
-                            ranked_posts.append(post)
+                        cand_idx = ranking['candidate'] - 1
+                        if 0 <= cand_idx < len(username_list):
+                            username = username_list[cand_idx]
+                            candidates_with_github[username]['relevance_score'] = ranking['score']
+                            candidates_with_github[username]['ranking_reason'] = ranking.get('reason', '')
 
-                    # Sort by relevance score
-                    ranked_posts.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
-                    all_posts = ranked_posts[:request.max_results]
+                    print(f"[Stage 4] Ranked {len(rankings)} candidates")
 
             except Exception as e:
-                print(f"[X Search] Error filtering with Grok: {e}")
-                # Fall back to returning all posts without relevance scores
-                all_posts = all_posts[:request.max_results]
+                print(f"[Stage 4] Error ranking with Grok: {e}")
 
-        # Format results
+        # Format final results
         results = []
-        for post in all_posts[:request.max_results]:
+        sorted_candidates = sorted(
+            candidates_with_github.items(),
+            key=lambda x: x[1].get('relevance_score', 0),
+            reverse=True
+        )[:request.max_results]
+
+        for username, data in sorted_candidates:
+            # Pick the best post to show
+            best_post = data['posts'][0] if data['posts'] else {'text': '', 'id': ''}
+
             results.append(CandidatePost(
-                username=post['username'],
-                post_text=post['post_text'],
-                post_url=f"https://x.com/{post['username']}/status/{post['post_id']}",
-                github_links=list(set(post['github_links'])),
-                relevance_score=post.get('relevance_score')
+                username=username,
+                post_text=best_post['text'],
+                post_url=f"https://x.com/{username}",
+                github_links=list(data['github_links']),
+                relevance_score=data.get('relevance_score')
             ))
 
         return {
             "role_description": request.role_description,
+            "jd_keywords": jd_profile.get('primary_keywords', []),
+            "search_queries_used": search_queries,
             "candidates_found": len(results),
-            "candidates": results,
-            "searched_handles": TARGET_HANDLES,
-            "total_posts_found": len(all_posts)
+            "total_users_discovered": len(discovered_users),
+            "users_with_github": len(candidates_with_github),
+            "candidates": results
         }
 
     except Exception as e:
