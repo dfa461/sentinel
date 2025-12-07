@@ -116,11 +116,14 @@ class CodeExecutionRequest(BaseModel):
 class RLAssessmentSubmission(BaseModel):
     candidateId: str
     problemId: str
+    problemTitle: str
+    problemDescription: str
     finalCode: str
     language: str
     progressMetrics: Dict[str, Any]  # Accept as dict
     monitoringEvents: List[Dict[str, Any]]
     hintsUsed: List[Dict[str, Any]]
+    challengeTodos: List[Dict[str, Any]]  # Challenge questions and responses
     executionAttempts: List[Dict[str, Any]]
     rlSignals: List[Dict[str, Any]]
     elapsedTime: int
@@ -755,37 +758,50 @@ async def monitor_progress(request: ProgressMonitorRequest):
 **Recent Events:**
 {json.dumps(request.monitoringEvents[-5:] if len(request.monitoringEvents) > 5 else request.monitoringEvents, indent=2)}
 
-**Your Task:**
-Analyze the CURRENT code compared to the PREVIOUS code (if any) and determine if a challenge question is needed.
+**CRITICAL INSTRUCTIONS:**
+1. FIRST, perform a detailed line-by-line diff between previous and current code
+2. Identify SPECIFIC new additions (data structures, algorithms, logic blocks, NOT just variable names or comments)
+3. Generate a challenge if there are meaningful structural changes (at least 10+ lines of new meaningful code)
 
-**Criteria for generating a challenge:**
-1. There has been SIGNIFICANT new progress since the last challenge (e.g., new function, new logic, meaningful refactoring)
-2. The candidate has made an interesting design choice worth exploring
-3. The code has evolved enough to warrant probing their understanding
+**Examples of SIGNIFICANT progress that WARRANT a challenge:**
+- Added a complete new data structure (HashMap, PriorityQueue, TreeSet)
+- Implemented a new algorithm (sorting, traversal, frequency counting)
+- Added a complete solution approach (skeleton → working solution)
+- Significant refactoring with architectural changes
 
-**DO NOT generate a challenge if:**
-- The changes are minor (small edits, formatting, simple bug fixes)
-- Not enough progress has been made since the last challenge
-- The code is still very similar to the previous snapshot
+**Examples of MINOR changes that DO NOT warrant a challenge:**
+- Adding/modifying comments
+- Renaming variables
+- Small bug fixes (1-5 lines)
+- Formatting changes
+- Adding simple if-else conditions
+- Tweaking existing logic slightly
 
-**Challenge Guidelines:**
-- Ask thought-provoking questions like: "Why did you choose this approach?", "What edge cases haven't you considered?", "What's the time complexity?", "How would this scale?"
-- Focus on NEW aspects of the code that weren't present in the previous snapshot
-- Only use challenges to probe understanding, NOT to give hints (users can request hints separately)
+**Challenge Question Requirements:**
+- Must be SPECIFIC to the NEW code elements added since last challenge
+- Must be DIFFERENT from generic questions (avoid: "explain your approach", "walk me through")
+- Focus on ONE specific aspect: data structure choice, time complexity, edge case, or design decision
+- Keep it concise (1-2 sentences max)
+
+**REJECT the challenge (set intervention_needed: false) if:**
+- Less than 10 lines of meaningful new code
+- Changes are cosmetic or minor (just comments, formatting, variable renames)
+- Code structure is essentially the same
+- You can't identify a SPECIFIC new element to ask about
 
 **Output Format (respond in JSON only):**
 {{
     "intervention_needed": true/false,
     "type": "challenge",
-    "content": "Your challenge question here"
+    "content": "Your challenge question here (or empty string if intervention_needed is false)"
 }}
 
-Respond ONLY with valid JSON, no other text."""
+Respond ONLY with valid JSON, no other text. Be VERY strict - when in doubt, set intervention_needed to false."""
 
     try:
         response = await call_grok_api(
             [{"role": "user", "content": watcher_prompt}],
-            temperature=0.5
+            temperature=0.4  # Balanced temperature for consistency with some variety
         )
 
         # Parse JSON response
@@ -1151,50 +1167,89 @@ async def submit_rl_assessment(submission: RLAssessmentSubmission):
     """
 
     # Generate comprehensive summary using all RL data
-    summary_prompt = f"""You are evaluating a candidate using an RL-powered interactive assessment system.
+    summary_prompt = f"""You are evaluating a candidate using an RL-powered interactive assessment system. Provide a comprehensive technical evaluation.
 
-**Problem:** {submission.problemId}
+**Problem:** {submission.problemTitle}
+{submission.problemDescription}
+
 **Final Code ({submission.language}):**
 ```{submission.language}
 {submission.finalCode}
 ```
 
-**RL Metrics:**
+**Execution Metrics:**
 - Duration: {submission.elapsedTime}s
 - Lines written: {submission.progressMetrics.get('linesWritten', 0)}
 - Code complexity: {submission.progressMetrics.get('codeComplexity', 0)}
 - Total code changes: {submission.progressMetrics.get('totalChanges', 0)}
-- Hints used: {3 - submission.progressMetrics.get('hintsRemaining', 3)}/3
+- Hints used: {len(submission.hintsUsed)}
 - Execution attempts: {len(submission.executionAttempts)}
 - Consecutive failures: {submission.progressMetrics.get('consecutiveFailures', 0)}
 
-**Monitoring Events:**
-{json.dumps(submission.monitoringEvents, indent=2)}
-
-**RL Signals (State-Action-Reward):**
-{json.dumps(submission.rlSignals, indent=2)}
+**Challenge Questions & Responses:**
+{json.dumps(submission.challengeTodos, indent=2)}
 
 **Hints Used:**
 {json.dumps(submission.hintsUsed, indent=2)}
 
-**Analysis:**
-This is an advanced RL-based assessment. Consider:
-1. Code quality and correctness
-2. How they responded to pauses/questions
-3. How effectively they used hints
-4. Their learning trajectory (getting better over time?)
-5. Engagement with the Socratic process
-6. Problem-solving adaptability
+**Execution Attempts:**
+{json.dumps(submission.executionAttempts, indent=2)}
 
-**Respond with JSON:**
+**Monitoring Events:**
+{json.dumps(submission.monitoringEvents[-10:] if len(submission.monitoringEvents) > 10 else submission.monitoringEvents, indent=2)}
+
+**Evaluation Instructions:**
+Analyze the candidate's performance across multiple dimensions and provide detailed, specific feedback.
+
+**Output Format (respond in JSON only):**
 {{
-    "overallRating": 1-10,
-    "strengths": ["strength 1", "strength 2", ...],
-    "weaknesses": ["weakness 1", "weakness 2", ...],
-    "recommendation": "strong_hire" | "hire" | "maybe" | "no_hire",
-    "rlInsights": "How they performed in the interactive RL system",
-    "learningTrajectory": "Did they improve throughout the assessment?"
-}}"""
+    "coreSummary": {{
+        "overallRecommendation": "Strong Hire" | "Hire" | "Weak Hire" | "No Hire",
+        "finalVerdictConfidence": "High" | "Medium" | "Low",
+        "overallRating": 1-10
+    }},
+    "technicalEvaluation": {{
+        "problemUnderstanding": "Strong" | "Moderate" | "Weak",
+        "problemUnderstandingNotes": "Specific observations about how well they understood the problem",
+        "algorithmChoice": "Excellent" | "Good" | "Fair" | "Poor",
+        "algorithmNotes": "Assessment of their algorithm/approach choice and reasoning",
+        "codeQuality": "Excellent" | "Good" | "Fair" | "Poor",
+        "codeQualityNotes": "Readability, structure, maintainability observations",
+        "correctness": "Excellent" | "Good" | "Fair" | "Poor",
+        "correctnessNotes": "Test results, edge-case handling assessment",
+        "debuggingAbility": "Excellent" | "Good" | "Fair" | "Poor",
+        "debuggingNotes": "Independence, speed of iteration, problem-solving approach"
+    }},
+    "followUpAdaptability": {{
+        "performanceOnFollowUps": "Excellent" | "Good" | "Fair" | "Poor",
+        "followUpNotes": "How they handled challenge questions",
+        "abilityToGeneralize": "Excellent" | "Good" | "Fair" | "Poor",
+        "generalizationNotes": "Could they extend solution to new constraints?",
+        "depthOfReasoning": "Excellent" | "Good" | "Fair" | "Poor",
+        "reasoningNotes": "Scalability thinking, trade-off analysis"
+    }},
+    "communicationCollaboration": {{
+        "clarityInExplanation": "Excellent" | "Good" | "Fair" | "Poor",
+        "clarityNotes": "How clearly they explained their approach in responses",
+        "responsivenessToFeedback": "Excellent" | "Good" | "Fair" | "Poor",
+        "responsivenessNotes": "How they responded to hints and challenges",
+        "tradeoffDiscussion": "Excellent" | "Good" | "Fair" | "Poor",
+        "tradeoffNotes": "Ability to discuss design choices and trade-offs"
+    }},
+    "executionMetrics": {{
+        "timeToComplete": "{submission.elapsedTime}s ({submission.elapsedTime // 60}m {submission.elapsedTime % 60}s)",
+        "hintsUsed": {len(submission.hintsUsed)},
+        "iterationsToCorrect": {len(submission.executionAttempts)},
+        "efficiency": "Efficient" | "Average" | "Slow"
+    }},
+    "strengthsWeaknesses": {{
+        "topStrengths": ["strength 1", "strength 2", "strength 3"],
+        "topConcerns": ["concern 1", "concern 2"]
+    }},
+    "detailedFeedback": "2-3 paragraph detailed analysis of their performance, learning trajectory, and overall assessment quality"
+}}
+
+Respond ONLY with valid JSON, no other text."""
 
     try:
         response = await call_grok_api(
@@ -1208,13 +1263,52 @@ This is an advanced RL-based assessment. Consider:
             json_str = response[json_start:json_end]
             summary = json.loads(json_str)
         else:
+            # Fallback summary if Grok fails
             summary = {
-                "overallRating": 6,
-                "strengths": ["Completed assessment", "Used interactive features"],
-                "weaknesses": ["Evaluation unavailable"],
-                "recommendation": "maybe",
-                "rlInsights": "Full analysis pending",
-                "learningTrajectory": "Data collected successfully"
+                "coreSummary": {
+                    "overallRecommendation": "Hire",
+                    "finalVerdictConfidence": "Low",
+                    "overallRating": 6
+                },
+                "technicalEvaluation": {
+                    "problemUnderstanding": "Moderate",
+                    "problemUnderstandingNotes": "Evaluation pending",
+                    "algorithmChoice": "Good",
+                    "algorithmNotes": "Evaluation pending",
+                    "codeQuality": "Good",
+                    "codeQualityNotes": "Evaluation pending",
+                    "correctness": "Good",
+                    "correctnessNotes": "Evaluation pending",
+                    "debuggingAbility": "Good",
+                    "debuggingNotes": "Evaluation pending"
+                },
+                "followUpAdaptability": {
+                    "performanceOnFollowUps": "Good",
+                    "followUpNotes": "Evaluation pending",
+                    "abilityToGeneralize": "Good",
+                    "generalizationNotes": "Evaluation pending",
+                    "depthOfReasoning": "Good",
+                    "reasoningNotes": "Evaluation pending"
+                },
+                "communicationCollaboration": {
+                    "clarityInExplanation": "Good",
+                    "clarityNotes": "Evaluation pending",
+                    "responsivenessToFeedback": "Good",
+                    "responsivenessNotes": "Evaluation pending",
+                    "tradeoffDiscussion": "Good",
+                    "tradeoffNotes": "Evaluation pending"
+                },
+                "executionMetrics": {
+                    "timeToComplete": f"{submission.elapsedTime}s",
+                    "hintsUsed": len(submission.hintsUsed),
+                    "iterationsToCorrect": len(submission.executionAttempts),
+                    "efficiency": "Average"
+                },
+                "strengthsWeaknesses": {
+                    "topStrengths": ["Completed assessment", "Used interactive features"],
+                    "topConcerns": ["Evaluation pending"]
+                },
+                "detailedFeedback": "Full evaluation pending. Candidate completed the assessment and used the interactive features."
             }
 
         # Store complete RL assessment
@@ -1222,15 +1316,19 @@ This is an advanced RL-based assessment. Consider:
         rl_state_db[assessment_id] = {
             "candidateId": submission.candidateId,
             "problemId": submission.problemId,
+            "problemTitle": submission.problemTitle,
+            "problemDescription": submission.problemDescription,
+            "language": submission.language,
             "startTime": datetime.now().timestamp() * 1000 - submission.elapsedTime * 1000,
             "endTime": datetime.now().timestamp() * 1000,
             "finalCode": submission.finalCode,
             "progressMetrics": submission.progressMetrics,
             "monitoringEvents": submission.monitoringEvents,
             "hintsUsed": submission.hintsUsed,
+            "challengeTodos": submission.challengeTodos,
             "executionAttempts": submission.executionAttempts,
             "rlSignals": submission.rlSignals,
-            **summary,
+            "evaluation": summary,
         }
 
         # Save RL training data

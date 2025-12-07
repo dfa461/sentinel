@@ -68,6 +68,7 @@ export function InteractiveAssessmentPage() {
   const startTimeRef = useRef(Date.now());
   const monitoringEventsRef = useRef<MonitoringEvent[]>(monitoringEvents);
   const lastChallengeCodeRef = useRef<string>(''); // Track code snapshot from last challenge
+  const lastChallengeTimeRef = useRef<number>(0); // Track when last challenge was generated
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -128,10 +129,36 @@ export function InteractiveAssessmentPage() {
     setExecutionAttemptCount(0);
   };
 
-  // Fixed interval monitoring - snapshots code every 5 seconds
+  // Fixed interval monitoring - snapshots code every 15 seconds
   useEffect(() => {
+    const MONITORING_INTERVAL = 15000; // 15 seconds
+    const CHALLENGE_COOLDOWN = 30000; // 30 seconds between challenges
+    const MIN_CODE_CHANGE = 20; // Minimum character change threshold
+
     const monitoringInterval = setInterval(async () => {
       try {
+        // Check if enough time has passed since last challenge (cooldown)
+        const timeSinceLastChallenge = Date.now() - lastChallengeTimeRef.current;
+        if (lastChallengeTimeRef.current > 0 && timeSinceLastChallenge < CHALLENGE_COOLDOWN) {
+          console.log(`[Monitor] Cooldown active: ${Math.round((CHALLENGE_COOLDOWN - timeSinceLastChallenge) / 1000)}s remaining`);
+          return;
+        }
+
+        // Check if code has changed significantly since last challenge
+        const codeChangeAmount = Math.abs(code.length - lastChallengeCodeRef.current.length);
+        if (lastChallengeCodeRef.current && codeChangeAmount < MIN_CODE_CHANGE) {
+          console.log(`[Monitor] Insufficient code change: ${codeChangeAmount} chars (need ${MIN_CODE_CHANGE})`);
+          return;
+        }
+
+        // Check if code is substantial enough (at least 80 characters beyond starter code)
+        if (code.trim().length < 80) {
+          console.log('[Monitor] Code too short, skipping');
+          return;
+        }
+
+        console.log('[Monitor] Checking for intervention...');
+
         const response = await fetch(`${RL_API_BASE}/monitor-progress`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -159,16 +186,18 @@ export function InteractiveAssessmentPage() {
             };
             setChallengeTodos((prev) => [...prev, challengeTodo]);
 
-            // Update the last challenge code snapshot
+            // Update the last challenge code snapshot and timestamp
             lastChallengeCodeRef.current = code;
+            lastChallengeTimeRef.current = Date.now();
+            console.log('[Monitor] Challenge generated!');
           } else {
-            console.log('No intervention needed');
+            console.log('[Monitor] No intervention needed');
           }
         }
       } catch (error) {
         console.error('Error monitoring progress:', error);
       }
-    }, 5000); // Check every 5 seconds
+    }, MONITORING_INTERVAL);
 
     return () => clearInterval(monitoringInterval);
   }, [code, problem.description, language, progressMetrics, monitoringEvents]);
@@ -325,7 +354,7 @@ export function InteractiveAssessmentPage() {
 
 
   const handleSubmit = async () => {
-    // Submit assessment with all RL data
+    // Submit assessment with all RL data including challenge TODOs
     try {
       const response = await fetch(`${RL_API_BASE}/submit-rl-assessment`, {
         method: 'POST',
@@ -333,11 +362,14 @@ export function InteractiveAssessmentPage() {
         body: JSON.stringify({
           candidateId: 'demo-candidate',
           problemId: problem.id,
+          problemTitle: problem.title,
+          problemDescription: problem.description,
           finalCode: code,
           language,
           progressMetrics,
           monitoringEvents,
           hintsUsed,
+          challengeTodos, // Include challenge questions and responses
           executionAttempts: lastExecutionResult ? [lastExecutionResult] : [],
           rlSignals,
           elapsedTime,

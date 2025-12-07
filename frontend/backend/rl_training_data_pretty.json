@@ -1,0 +1,898 @@
+[
+  {
+    "assessmentId": "rl_assess_1765088690.052514",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    # Your code here\n    return []",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 5,
+        "codeComplexity": 4,
+        "lastChangeTimestamp": 1765088641377,
+        "totalChanges": 31,
+        "consecutiveFailures": 2,
+        "hintsRemaining": 2
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [
+        {
+          "id": "1765088648172",
+          "content": "Consider how you might organize the intervals to make it easier to check for overlaps. Could sorting the intervals by their start times help in identifying which ones to merge?",
+          "context": "The candidate's code is currently empty, indicating they might not know where to start. A gentle nudge towards sorting as a first step addresses the initial blocking issue without revealing the full logic of merging.",
+          "timestamp": 1765088648172,
+          "used": true
+        }
+      ],
+      "executionAttempts": [
+        {
+          "success": false,
+          "results": [
+            {
+              "passed": false,
+              "input": "intervals = [[1,3],[2,6],[8,10],[15,18]]",
+              "expectedOutput": "[[1,6],[8,10],[15,18]]",
+              "actualOutput": "[]",
+              "error": null,
+              "executionTime": 0.039813995361328125,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": false,
+              "input": "intervals = [[1,4],[4,5]]",
+              "expectedOutput": "[[1,5]]",
+              "actualOutput": "[]",
+              "error": null,
+              "executionTime": 0.025326967239379883,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "testsTotal": 2,
+          "testsPassed": 0
+        }
+      ],
+      "rlSignals": [
+        {
+          "eventId": "1765088648172",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 4,
+            "progressRate": 0.96875,
+            "engagementLevel": 0.6
+          }
+        }
+      ],
+      "elapsedTime": 65
+    },
+    "summary": {
+      "overallRating": 3,
+      "strengths": [
+        "Demonstrated some engagement with the problem as indicated by the engagement level of 0.6 in RL state.",
+        "Utilized a hint effectively to potentially guide their approach, showing openness to assistance."
+      ],
+      "weaknesses": [
+        "Failed to produce any functional code within the given timeframe, as the final code remains empty.",
+        "Low code quality (rated 4) and minimal lines written (5), indicating a lack of progress or understanding of the problem.",
+        "High number of code changes (31) with only 1 execution attempt, suggesting inefficiency or confusion in approach.",
+        "Experienced consecutive failures (2), which may indicate difficulty in adapting or learning from mistakes."
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate's performance in the RL system was underwhelming. They used 1 out of 3 available hints, which resulted in a small positive reward (0.5), but this did not translate into meaningful progress in solving the problem. Their progress rate (0.96875) appears high, but without code output or successful execution, this metric may reflect time spent rather than actual advancement. Engagement level (0.6) suggests moderate interaction, but it did not lead to problem-solving success.",
+      "learningTrajectory": "There is no clear evidence of improvement throughout the assessment. The candidate's code remained empty, and despite using a hint, they did not demonstrate progress in implementing a solution or adapting their approach over time."
+    },
+    "timestamp": "2025-12-06T22:24:50.053381"
+  },
+  {
+    "assessmentId": "rl_assess_1765088700.014796",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    # Your code here\n    pass",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 0,
+        "codeComplexity": 0,
+        "lastChangeTimestamp": 1765088697046,
+        "totalChanges": 0,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 3
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [],
+      "rlSignals": [],
+      "elapsedTime": 0
+    },
+    "summary": {
+      "overallRating": 1,
+      "strengths": [],
+      "weaknesses": [
+        "No code submitted or attempted for the problem.",
+        "Lack of engagement with the assessment system.",
+        "No utilization of available hints or resources.",
+        "No evidence of problem-solving effort or adaptability."
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate did not interact with the RL-powered interactive assessment system at all. There are no metrics or signals to evaluate their performance, as they did not attempt the problem or engage with the system.",
+      "learningTrajectory": "There is no learning trajectory to assess, as the candidate did not participate in the assessment process or make any attempts to solve the problem."
+    },
+    "timestamp": "2025-12-06T22:25:00.015103"
+  },
+  {
+    "assessmentId": "rl_assess_1765088824.346964",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    # Your code here\n    pass",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 0,
+        "codeComplexity": 0,
+        "lastChangeTimestamp": 1765088819619,
+        "totalChanges": 0,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 3
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [],
+      "rlSignals": [],
+      "elapsedTime": 2
+    },
+    "summary": {
+      "overallRating": 1,
+      "strengths": [],
+      "weaknesses": [
+        "No code written or attempted for the problem",
+        "Lack of engagement with the assessment system",
+        "No execution attempts or problem-solving activity"
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate did not interact with the RL-powered interactive system at all. There were no code changes, execution attempts, or hint usage recorded. The duration of 2 seconds suggests minimal time spent on the problem.",
+      "learningTrajectory": "There is no evidence of improvement or learning throughout the assessment as the candidate did not engage with the problem or the system."
+    },
+    "timestamp": "2025-12-06T22:27:04.347600"
+  },
+  {
+    "assessmentId": "rl_assess_1765088980.926648",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    intervals.sort(key=lambda x: x[0])\n\n    merged = []\n    for interval in intervals:\n        # if the list of merged intervals is empty or if the current\n        # interval does not overlap with the previous, simply append it.\n        if not merged or merged[-1][1] < interval[0]:\n            merged.append(interval)\n        else:\n            # otherwise, there is overlap, so we merge the current and previous\n            # intervals.\n            merged[-1][1] = max(merged[-1][1], interval[1])\n\n    return merged",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 17,
+        "codeComplexity": 14,
+        "lastChangeTimestamp": 1765088970788,
+        "totalChanges": 2,
+        "consecutiveFailures": 1,
+        "hintsRemaining": 3
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [
+        {
+          "success": false,
+          "results": [
+            {
+              "passed": false,
+              "input": "intervals = [[1,3],[2,6],[8,10],[15,18]]",
+              "expectedOutput": "[[1,6],[8,10],[15,18]]",
+              "actualOutput": "[[1, 6], [8, 10], [15, 18]]",
+              "error": null,
+              "executionTime": 0.05417013168334961,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": false,
+              "input": "intervals = [[1,4],[4,5]]",
+              "expectedOutput": "[[1,5]]",
+              "actualOutput": "[[1, 5]]",
+              "error": null,
+              "executionTime": 0.023653030395507812,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "testsTotal": 2,
+          "testsPassed": 0
+        }
+      ],
+      "rlSignals": [],
+      "elapsedTime": 10
+    },
+    "summary": {
+      "overallRating": 9,
+      "strengths": [
+        "Efficient and correct solution to the merge-intervals problem with clear logic.",
+        "Minimal code changes (only 2) and quick completion time (10s), indicating strong problem-solving skills.",
+        "No hints used, demonstrating independence and confidence in their approach.",
+        "Low code complexity (14) for an optimal solution, showing good coding practices."
+      ],
+      "weaknesses": [
+        "Limited data on adaptability or learning trajectory due to lack of monitoring events or RL signals.",
+        "Single execution attempt with one consecutive failure, though it did not impact the final correct solution."
+      ],
+      "recommendation": "strong_hire",
+      "rlInsights": "The candidate performed exceptionally well in the interactive RL system by solving the problem quickly and independently without requiring hints. However, the lack of monitoring events and RL signals limits deeper insights into their interactive behavior or response to challenges.",
+      "learningTrajectory": "Unable to assess learning trajectory due to the absence of RL signals or monitoring events. The candidate completed the task efficiently in a single attempt, suggesting they already possessed the necessary skills for this problem."
+    },
+    "timestamp": "2025-12-06T22:29:40.927122"
+  },
+  {
+    "assessmentId": "rl_assess_1765090249.924094",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    intervals = sorted(intervals)\n    pass",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 5,
+        "codeComplexity": 3,
+        "lastChangeTimestamp": 1765090241204,
+        "totalChanges": 55,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [
+        {
+          "id": "1765090119398",
+          "content": "Start by thinking about how you can identify overlapping intervals. Consider if sorting the intervals by their start times could help in comparing adjacent intervals for overlaps.",
+          "context": "Since the candidate has not started coding yet, a gentle nudge towards the initial step of sorting is appropriate to guide their approach without revealing the full logic of merging.",
+          "timestamp": 1765090119398,
+          "used": true
+        },
+        {
+          "id": "1765090132391",
+          "content": "You've sorted the intervals, which is a great first step! Now, think about how you can compare adjacent intervals to check if they overlap and how to combine them if they do.",
+          "context": "The candidate has started with sorting, which is correct for this problem, but they haven't progressed beyond that. This hint nudges them to consider the next logical step of comparing and merging without providing the exact logic.",
+          "timestamp": 1765090132391,
+          "used": true
+        },
+        {
+          "id": "1765090181873",
+          "content": "You've sorted the intervals, which is a great first step. Now, think about how you can iterate through the sorted list to compare adjacent intervals and decide if they overlap.",
+          "context": "The candidate has started with sorting the intervals, which is correct, but they haven't progressed beyond that. This hint nudges them to consider the next logical step\u2014iteration and comparison\u2014without revealing the exact logic for merging.",
+          "timestamp": 1765090181873,
+          "used": true
+        }
+      ],
+      "executionAttempts": [],
+      "rlSignals": [
+        {
+          "eventId": "1765090119398",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 0,
+            "progressRate": null,
+            "engagementLevel": 0.6
+          }
+        },
+        {
+          "eventId": "1765090132391",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 3,
+            "progressRate": 2.8125,
+            "engagementLevel": 0.6
+          }
+        },
+        {
+          "eventId": "1765090181873",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 3,
+            "progressRate": 1,
+            "engagementLevel": 0.6
+          }
+        }
+      ],
+      "elapsedTime": 129
+    },
+    "summary": {
+      "overallRating": 3,
+      "strengths": [
+        "Demonstrated initial understanding by sorting intervals, which is a correct first step for the merge intervals problem.",
+        "Showed some engagement with the assessment process by using provided hints."
+      ],
+      "weaknesses": [
+        "Failed to progress beyond the initial sorting step, leaving the core logic of merging intervals unimplemented.",
+        "Did not demonstrate problem-solving adaptability or independent progress after receiving multiple hints.",
+        "Lack of execution attempts (0 attempts) indicates hesitation or inability to test and iterate on their solution.",
+        "Low code quality and correctness as the submitted code is incomplete and non-functional."
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate engaged with the RL system by using hints (3 hints used), and the system provided positive rewards (0.5 per hint) for engagement. However, their engagement level remained static at 0.6, and there was no significant improvement in code quality (stayed at 3) or progress beyond the initial step. The RL metrics show a high number of code changes (55), but these did not translate into meaningful progress in solving the problem.",
+      "learningTrajectory": "The candidate did not show improvement throughout the assessment. Despite receiving multiple hints over time (from timestamp 1765090119398 to 1765090181873), they remained stuck at the sorting step without advancing to the merging logic. Their progress rate fluctuated (from null to 2.8125 to 1), but this did not result in a functional solution or notable learning growth."
+    },
+    "timestamp": "2025-12-06T22:50:49.925416"
+  },
+  {
+    "assessmentId": "rl_assess_1765092245.991594",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    print(\"ggwp!\")\n    return intervals",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 5,
+        "codeComplexity": 4,
+        "lastChangeTimestamp": 1765092240392,
+        "totalChanges": 55,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [],
+      "rlSignals": [],
+      "elapsedTime": 17
+    },
+    "summary": {
+      "overallRating": 1,
+      "strengths": [],
+      "weaknesses": [
+        "Code does not solve the problem; it simply returns the input without merging intervals.",
+        "Lack of engagement with the problem-solving process as indicated by minimal code changes and no execution attempts.",
+        "No meaningful interaction with hints or the RL system, with an unusual negative hint usage metric (-996/3) suggesting possible system error or disengagement.",
+        "Extremely low code complexity and effort, indicating minimal attempt to address the problem."
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate showed no meaningful interaction with the RL-powered interactive system. There were no execution attempts, no monitoring events, and no recorded RL signals or state-action-reward data. The duration of 17 seconds suggests very little time spent on the problem, and the high number of code changes (55) relative to the minimal lines written (5) may indicate erratic or unfocused behavior.",
+      "learningTrajectory": "There is no evidence of improvement or learning throughout the assessment. The candidate did not engage with the problem or the system in a way that demonstrates progress or adaptability."
+    },
+    "timestamp": "2025-12-06T23:24:05.992074"
+  },
+  {
+    "assessmentId": "rl_assess_1765094241.687391",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    intervals.sort()\n    left = intervals[0][0]\n    right = intervals[0][1]\n    res = []\n    for i in range(1, len(intervals)):\n        if intervals[i][0] > right:\n            res.append([left, right])\n            left = intervals[i][0]\n        right = intervals[i][1]\n    return res + [left, right]",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 13,
+        "codeComplexity": 10,
+        "lastChangeTimestamp": 1765094219455,
+        "totalChanges": 358,
+        "consecutiveFailures": 2,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [
+        {
+          "success": false,
+          "results": [
+            {
+              "passed": false,
+              "input": "intervals = [[1,3],[2,6],[8,10],[15,18]]",
+              "expectedOutput": "[[1,6],[8,10],[15,18]]",
+              "actualOutput": "[[1, 6], [8, 10], 15, 18]",
+              "error": null,
+              "executionTime": 0.050827741622924805,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": false,
+              "input": "intervals = [[1,4],[4,5]]",
+              "expectedOutput": "[[1,5]]",
+              "actualOutput": "[1, 5]",
+              "error": null,
+              "executionTime": 0.02567601203918457,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "testsTotal": 2,
+          "testsPassed": 0
+        }
+      ],
+      "rlSignals": [],
+      "elapsedTime": 265
+    },
+    "summary": {
+      "overallRating": 3,
+      "strengths": [
+        "Attempted to solve the problem with a sorting approach, showing basic understanding of the need to order intervals.",
+        "Code structure is concise with minimal lines, indicating an attempt to keep the solution simple."
+      ],
+      "weaknesses": [
+        "Code correctness is lacking; the solution does not properly handle the merging of overlapping intervals and has logical errors (e.g., the final return statement and loop logic are incorrect).",
+        "High number of code changes (358) relative to the small number of lines (13) suggests inefficiency and excessive trial-and-error without clear direction.",
+        "Duration of 265s is relatively long for the simplicity of the attempted solution, indicating potential struggles with problem-solving efficiency.",
+        "Hints usage (-996/3) is unclear or negative, which may indicate a lack of effective engagement with provided support or misunderstanding of the system.",
+        "Consecutive failures (2) and minimal execution attempts (1) suggest limited persistence or debugging effort."
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate's performance in the interactive RL system appears suboptimal. The high number of code changes without a correct solution indicates a lack of structured problem-solving. Additionally, the unclear or negative hint usage metric suggests they did not effectively leverage the system's guidance or feedback mechanisms.",
+      "learningTrajectory": "There is no clear evidence of improvement throughout the assessment. The high number of code changes without a successful outcome, combined with limited execution attempts and consecutive failures, suggests the candidate did not adapt or learn effectively during the process."
+    },
+    "timestamp": "2025-12-06T23:57:21.687993"
+  },
+  {
+    "assessmentId": "rl_assess_1765094320.467514",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "merge-intervals",
+      "finalCode": "from typing import List\n\ndef merge(intervals: List[List[int]]) -> List[List[int]]:\n    intervals.sort()",
+      "language": "python",
+      "progressMetrics": {
+        "linesWritten": 4,
+        "codeComplexity": 2.5,
+        "lastChangeTimestamp": 1765094297043,
+        "totalChanges": 24,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [],
+      "rlSignals": [],
+      "elapsedTime": 28
+    },
+    "summary": {
+      "overallRating": 2,
+      "strengths": [
+        "Attempted to start the problem by writing initial code",
+        "Quick duration of 28s shows some level of engagement"
+      ],
+      "weaknesses": [
+        "Code is incomplete and lacks functionality to solve the merge-intervals problem",
+        "Only sorted the intervals without implementing the merging logic",
+        "No execution attempts made to test or validate the code",
+        "High number of code changes (24) relative to lines written (4) suggests inefficiency or uncertainty",
+        "Did not utilize hints effectively or engage with the interactive system (hints used: -996/3 is unclear or erroneous data)"
+      ],
+      "recommendation": "no_hire",
+      "rlInsights": "The candidate showed minimal interaction with the RL-powered system. There are no monitoring events or RL signals recorded, indicating a lack of engagement with the interactive elements of the assessment. The absence of execution attempts and consecutive failures suggests they did not test or iterate on their solution.",
+      "learningTrajectory": "There is no evidence of improvement or learning during the assessment. The candidate did not progress beyond the initial sorting step, and the lack of interaction with hints or system feedback indicates a static approach without adaptation or growth."
+    },
+    "timestamp": "2025-12-06T23:58:40.469920"
+  },
+  {
+    "assessmentId": "rl_assess_1765098269.132228",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "top-k-frequent-elements",
+      "finalCode": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        Map<Integer, Integer> freq = new HashMap<>();\n        for (int num : nums) {\n            freq.put(num, freq.getOrDefault(num, 0) + 1);\n        }\n\n        PriorityQueue<Map.Entry<Integer, Integer>> maxHeap = \n        new PriorityQueue<>((a, b) -> a.getValue() - b.getValue());\n        \n        for (int i = 0; i < nums.length; i++) {\n            int key = nums[i];\n            int val = freq.getOrDefault(nums[i], 0) + 1;\n            freq.put(key, val);\n        }\n        \n\n        for (Map.Entry<Integer, Integer> entry: freq.entrySet()) {\n            pq.offer(new Pair<>(entry.getKey(), entry.getValue()));\n            if (pq.size() > k) {\n                pq.poll();\n            }\n        }\n         \n        int j = k - 1;\n        while (!pq.isEmpty()) {\n            Pair<Integer, Integer> p = pq.poll();\n            ans[j] = p.getKey();\n            j--;\n        }\n        return ans;\n    }\n}",
+      "language": "java",
+      "progressMetrics": {
+        "linesWritten": 36,
+        "codeComplexity": 22,
+        "lastChangeTimestamp": 1765098240799,
+        "totalChanges": 32,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [
+        {
+          "id": "1765097947179",
+          "type": "pause_detected",
+          "timestamp": 1765097947179,
+          "metadata": {
+            "pauseDuration": 18.259,
+            "lastCodeSnapshot": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        Map<Integer, Integer> freq = new HashMap<>();\n        for (int num : nums) {\n            freq.put(num, freq.getOrDefault(num, 0) + 1);\n        }\n\n        PriorityQueue<Map.Entry<Integer, Integer>> maxHeap = new PriorityQueue<>((a, b) -> b.getValue() - a.getValue());\n        maxHeap.addAll(freq.entrySet());\n\n        // Extract top k elements \u2192 O(k log n)  (or conceptual O(nk))\n        int[] ans = new int[k];\n        for (int i = 0; i < k; i++) {\n            ans[i] = maxHeap.poll().getKey();\n        }\n\n        return ans;\n    }\n}",
+            "lineCount": 22
+          }
+        },
+        {
+          "id": "1765098258186",
+          "type": "pause_detected",
+          "timestamp": 1765098258186,
+          "metadata": {
+            "pauseDuration": 17.389,
+            "lastCodeSnapshot": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        Map<Integer, Integer> freq = new HashMap<>();\n        for (int num : nums) {\n            freq.put(num, freq.getOrDefault(num, 0) + 1);\n        }\n\n        PriorityQueue<Map.Entry<Integer, Integer>> maxHeap = \n        new PriorityQueue<>((a, b) -> a.getValue() - b.getValue());\n        \n        for (int i = 0; i < nums.length; i++) {\n            int key = nums[i];\n            int val = freq.getOrDefault(nums[i], 0) + 1;\n            freq.put(key, val);\n        }\n        \n\n        for (Map.Entry<Integer, Integer> entry: freq.entrySet()) {\n            pq.offer(new Pair<>(entry.getKey(), entry.getValue()));\n            if (pq.size() > k) {\n                pq.poll();\n            }\n        }\n         \n        int j = k - 1;\n        while (!pq.isEmpty()) {\n            Pair<Integer, Integer> p = pq.poll();\n            ans[j] = p.getKey();\n            j--;\n        }\n        return ans;\n    }\n}",
+            "lineCount": 36
+          }
+        }
+      ],
+      "hintsUsed": [
+        {
+          "id": "1765097778196",
+          "content": "You've correctly built the frequency map\u2014nice work! Now, consider a data structure like a min-heap (PriorityQueue in Java) of size k to efficiently track the top k frequent elements from the map.",
+          "context": "The candidate has completed the frequency counting step accurately. The most blocking issue is selecting and returning the top k elements efficiently (better than O(n log n)), and a heap is a standard next step that fits the constraints without revealing the full implementation.",
+          "timestamp": 1765097778196,
+          "used": true
+        },
+        {
+          "id": "1765097858198",
+          "content": "You've correctly built the frequency map and initialized a max-heap with the right comparator for frequency. Now think about how to populate the heap with the map's entries and then extract exactly k elements from it.",
+          "context": "The code has the foundational pieces (freq map and max-heap setup) but stops short of adding entries to the heap and retrieving the top k, which is the core blocking issue. This hint acknowledges progress, identifies the gap specifically, and prompts them to reason through the next logical steps without providing code.",
+          "timestamp": 1765097858198,
+          "used": true
+        },
+        {
+          "id": "1765097944494",
+          "content": "Your heap-based approach builds a priority queue with all unique elements, leading to O(n log n) time overall. Since frequencies range from 1 to n, consider grouping numbers by their frequency using an array of lists (buckets) to avoid logarithmic factors.",
+          "context": "The candidate has a correct but suboptimal O(n log n) solution using a max-heap; the hint points to the bucket sort idea exploiting bounded frequencies without spoiling the implementation, addressing the follow-up constraint directly.",
+          "timestamp": 1765097944494,
+          "used": true
+        }
+      ],
+      "executionAttempts": [],
+      "rlSignals": [
+        {
+          "eventId": "1765097778196",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 8.5,
+            "progressRate": 0.056451612903225805,
+            "engagementLevel": 0.6
+          }
+        },
+        {
+          "eventId": "1765097858198",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 9,
+            "progressRate": 0.06403940886699508,
+            "engagementLevel": 0.6
+          }
+        },
+        {
+          "eventId": "1765097944494",
+          "eventType": "hint_used",
+          "action": "provided_hint",
+          "reward": 0.5,
+          "state": {
+            "codeQuality": 13,
+            "progressRate": 0.0859106529209622,
+            "engagementLevel": 0.6
+          }
+        },
+        {
+          "eventId": "1765097952742",
+          "eventType": "pause_detected",
+          "action": "asked_thought_process",
+          "reward": 0.8,
+          "state": {
+            "codeQuality": 13,
+            "progressRate": 0.0755287009063444,
+            "engagementLevel": 0.8
+          }
+        }
+      ],
+      "elapsedTime": 611
+    },
+    "summary": {
+      "overallRating": 4,
+      "strengths": [
+        "Correctly implemented frequency counting with HashMap",
+        "Demonstrated knowledge of PriorityQueue for top-k selection, achieving a working max-heap solution initially",
+        "Responded to hints by attempting optimization to min-heap of size k",
+        "Engaged with Socratic process via pauses and hint usage"
+      ],
+      "weaknesses": [
+        "Final code is incorrect and non-compiling: undeclared 'pq' and 'ans', non-standard 'Pair' without import, redundant/buggy frequency recount loop",
+        "No execution attempts or testing, leading to unverified buggy state",
+        "High code changes (32) and lines (36) indicate inefficiency and regression from initial correct snapshot",
+        "Did not complete optimal bucket-sort approach despite hint, and broke working code during optimization"
+      ],
+      "recommendation": "maybe",
+      "rlInsights": "Used all 3 hints effectively to progress conceptually (freq map \u2192 max-heap \u2192 min-heap attempt), with positive rewards on hints/pauses showing engagement (0.5-0.8). However, long duration (611s), pauses with messy snapshots, and 0 executions reflect implementation struggles and lack of validation in interactive RL flow.",
+      "learningTrajectory": "Improved initially to correct O(n log n) max-heap solution (per first snapshot), but regressed while optimizing to min-heap k (second snapshot/final code broken); shows conceptual growth but poor execution polish."
+    },
+    "timestamp": "2025-12-07T01:04:29.139551"
+  },
+  {
+    "assessmentId": "rl_assess_1765099080.372452",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "top-k-frequent-elements",
+      "finalCode": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        // Frequency map\n        Map<Integer, Integer> freq = new HashMap<>();\n        for (int num : nums) {\n            freq.put(num, freq.getOrDefault(num, 0) + 1);\n        }\n\n        // Max heap: compare by frequency (high freq first)\n        PriorityQueue<Map.Entry<Integer, Integer>> maxHeap =\n            new PriorityQueue<>((a, b) -> b.getValue() - a.getValue());\n\n        // Add all entries into max heap \u2192 O(n log n)\n        maxHeap.addAll(freq.entrySet());\n\n        // Extract top k elements \u2192 O(k log n)  (or conceptual O(nk))\n        int[] ans = new int[k];\n        for (int i = 0; i < k; i++) {\n            ans[i] = maxHeap.poll().getKey();\n        }\n\n        return ans;\n    }\n}",
+      "language": "java",
+      "progressMetrics": {
+        "linesWritten": 27,
+        "codeComplexity": 15,
+        "lastChangeTimestamp": 1765099060463,
+        "totalChanges": 5,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [],
+      "hintsUsed": [],
+      "executionAttempts": [
+        {
+          "success": true,
+          "results": [
+            {
+              "passed": true,
+              "input": "nums = [1,1,1,2,2,3], k = 2",
+              "expectedOutput": "[1,2]",
+              "actualOutput": "[1,2]",
+              "error": null,
+              "executionTime": 3.1239869594573975,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": true,
+              "input": "nums = [1], k = 1",
+              "expectedOutput": "[1]",
+              "actualOutput": "[1]",
+              "error": null,
+              "executionTime": 2.5894200801849365,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": true,
+              "input": "nums = [4,1,-1,2,-1,2,3], k = 2",
+              "expectedOutput": "[-1,2]",
+              "actualOutput": "[-1,2]",
+              "error": null,
+              "executionTime": 2.5024068355560303,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "testsTotal": 3,
+          "testsPassed": 3
+        }
+      ],
+      "rlSignals": [],
+      "elapsedTime": 55
+    },
+    "summary": {
+      "overallRating": 9,
+      "strengths": [
+        "Correct and efficient solution using HashMap and PriorityQueue (max-heap), achieving O(n log n) time complexity which is suitable for the problem.",
+        "Clean, readable code with helpful comments explaining approach and complexities.",
+        "Quick completion in 55s with only 1 execution attempt and 0 failures, indicating strong confidence and understanding.",
+        "Minimal code changes (5 total), suggesting thoughtful initial implementation."
+      ],
+      "weaknesses": [
+        "Suboptimal compared to O(n) bucket-sort approach, but still performs well within constraints.",
+        "Hints metric (-996/3) is unclear or anomalous, potentially indicating unusual hint usage, though no explicit hints listed."
+      ],
+      "recommendation": "strong_hire",
+      "rlInsights": "Excellent performance in RL system: fast solve, single successful execution, low changes/failures, no monitoring events needed, demonstrating seamless problem-solving without assistance.",
+      "learningTrajectory": "Strong from the start\u2014no failures or iterations needed, indicating prior mastery rather than on-the-fly learning."
+    },
+    "timestamp": "2025-12-07T01:18:00.377556"
+  },
+  {
+    "assessmentId": "rl_assess_1765106430.659944",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "top-k-frequent-elements",
+      "finalCode": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        int[] out = new int[k];  // output array\n\n        // freq map\n        HashMap<Integer, Integer> mp = new HashMap<>();\n\n        // build freq map (verbose)\n        for (int i = 0; i < nums.length; i++) {\n            int x = nums[i];\n\n            if (mp.containsKey(x)) {\n                int c = mp.get(x);\n                c = c + 1;\n                mp.put(x, c);\n            } else {\n                mp.put(x, 1);\n            }\n        }\n\n        // min heap storing {val, freq}\n        PriorityQueue<int[]> pq = new PriorityQueue<>(\n            new Comparator<int[]>() {\n                @Override\n                public int compare(int[] a, int[] b) {\n                    if (a[1] < b[1]) return -1;\n                    if (a[1] > b[1]) return 1;\n                    return 0;\n                }\n            }\n        );\n\n        // iterate map\n        for (Integer v : mp.keySet()) {\n\n            int f = mp.get(v);\n\n            int[] arr = new int[2];\n            arr[0] = v;\n            arr[1] = f;\n\n            pq.offer(arr);\n\n            if (pq.size() > k) {\n                int[] rem = pq.poll(); \n                int rv = rem[0]; // pointless\n                int rf = rem[1]; // also pointless\n            }\n        }\n\n        // dump heap into list first\n        ArrayList<Integer> lst = new ArrayList<>();\n        while (!pq.isEmpty()) {\n            int[] p = pq.poll();\n            int vv = p[0];\n            lst.add(vv);\n        }\n\n        // copy list into output\n        for (int i = 0; i < lst.size(); i++) {\n            out[lst.size() - 1 - i] = lst.get(i);\n        }\n\n        return out;\n\n    }\n}",
+      "language": "java",
+      "progressMetrics": {
+        "linesWritten": 70,
+        "codeComplexity": 42,
+        "lastChangeTimestamp": 1765106410999,
+        "totalChanges": 49,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [
+        {
+          "id": "1765106215755",
+          "type": "thought_process_verified",
+          "timestamp": 1765106215755,
+          "metadata": {
+            "challengeId": "1765106100398",
+            "response": "I will use this min heap to remove the element with least frequency from the k elements in the heap because i want to keep the most frequent k elements",
+            "isVoice": false
+          }
+        }
+      ],
+      "hintsUsed": [],
+      "executionAttempts": [
+        {
+          "success": true,
+          "results": [
+            {
+              "passed": true,
+              "input": "nums = [1,1,1,2,2,3], k = 2",
+              "expectedOutput": "[1,2]",
+              "actualOutput": "[1,2]",
+              "error": null,
+              "executionTime": 2.3375821113586426,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": true,
+              "input": "nums = [1], k = 1",
+              "expectedOutput": "[1]",
+              "actualOutput": "[1]",
+              "error": null,
+              "executionTime": 2.2291510105133057,
+              "stdout": "",
+              "stderr": ""
+            },
+            {
+              "passed": true,
+              "input": "nums = [4,1,-1,2,-1,2,3], k = 2",
+              "expectedOutput": "[-1,2]",
+              "actualOutput": "[-1,2]",
+              "error": null,
+              "executionTime": 2.0355939865112305,
+              "stdout": "",
+              "stderr": ""
+            }
+          ],
+          "testsTotal": 3,
+          "testsPassed": 3
+        }
+      ],
+      "rlSignals": [],
+      "elapsedTime": 413
+    },
+    "summary": {
+      "overallRating": 7,
+      "strengths": [
+        "Correctly implemented min-heap (PriorityQueue) to efficiently track top-k frequent elements (O(n log k) time)",
+        "Proper frequency map construction and heap maintenance by polling least frequent when size exceeds k",
+        "Single execution attempt with zero consecutive failures indicates solid final solution",
+        "Verified thought process shows understanding of keeping most frequent k elements via min-heap"
+      ],
+      "weaknesses": [
+        "Verbose code (70 lines, manual freq increment instead of getOrDefault/merge)",
+        "Unnecessary pointless variables (rv, rf) after polling",
+        "Excessive code changes (49) and high duration (413s) suggest iteration/struggles with Java syntax",
+        "Unneeded reversal of output list (problem allows any order)"
+      ],
+      "recommendation": "hire",
+      "rlInsights": "Effective use of min-heap strategy in interactive RL system; one verified thought process confirming approach; minimal executions/hints needed for success despite high edit count",
+      "learningTrajectory": "Limited data (1 exec, 0 fails), but successful outcome with verified reasoning suggests steady progress to correct solution"
+    },
+    "timestamp": "2025-12-07T03:20:30.663561"
+  },
+  {
+    "assessmentId": "rl_assess_1765108326.394153",
+    "submission": {
+      "candidateId": "demo-candidate",
+      "problemId": "top-k-frequent-elements",
+      "problemTitle": "Top K Frequent Elements",
+      "problemDescription": "Given an integer array nums and an integer k, return the k most frequent elements. You may return the answer in any order.\n\n**Constraints:**\n- 1 <= nums.length <= 10^5\n- -10^4 <= nums[i] <= 10^4\n- k is in the range [1, the number of unique elements in the array].\n- It is guaranteed that the answer is unique.\n\n**Follow-up:**\nYour algorithm's time complexity must be better than O(n log n), where n is the array's size.\n\n**Example 1:**\nInput: nums = [1,1,1,2,2,3], k = 2\nOutput: [1,2]\n\n**Example 2:**\nInput: nums = [1], k = 1\nOutput: [1]",
+      "finalCode": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        int[] out = new int[k];  // output array\n\n        // freq map\n        HashMap<Integer, Integer> mp = new HashMap<>();\n\n        // build freq map (verbose)\n        for (int i = 0; i < nums.length; i++) {\n            int x = nums[i];\n            map.put(x, map.getOrDefault(x, 0) + 1);\n        }\n\n        // \n        PriorityQueue<int[]> pq = new PriorityQueue<>(\n            new Comparator<int[]>() {\n                @Override\n                public int compare(int[] a, int[] b) {\n                    if (a[1] < b[1]) return -1;\n                    if (a[1] > b[1]) return 1;\n                    return 0;\n                }\n            }\n        );\n\n        for (Integer v : mp.keySet()) {\n\n            int f = mp.get(v);\n\n            int[] arr = new int[2];\n            arr[0] = v;\n            arr[1] = f;\n\n            pq.offer(arr);\n\n            if (pq.size() > k) {\n                int[] rem = pq.poll(); \n                int rv = rem[0]; // pointless\n                int rf = rem[1]; // also pointless\n            }\n        }\n\n        // dump heap into list first\n        ArrayList<Integer> lst = new ArrayList<>();\n        while (!pq.isEmpty()) {\n            int[] p = pq.poll();\n            int vv = p[0];\n            lst.add(vv);\n        }\n\n        // copy list into output\n        for (int i = 0; i < lst.size(); i++) {\n            out[i] = lst.get(i);\n        }\n\n        return out;\n    }\n}",
+      "language": "java",
+      "progressMetrics": {
+        "linesWritten": 61,
+        "codeComplexity": 36.5,
+        "lastChangeTimestamp": 1765108191512,
+        "totalChanges": 94,
+        "consecutiveFailures": 0,
+        "hintsRemaining": 999
+      },
+      "monitoringEvents": [
+        {
+          "id": "1765107742750",
+          "type": "thought_process_verified",
+          "timestamp": 1765107742750,
+          "metadata": {
+            "challengeId": "1765107552308",
+            "response": "The if-else check in the loop for containskey is an O(1) operation and the put operation is O(1), so it is O(1)",
+            "isVoice": false
+          }
+        },
+        {
+          "id": "1765108157706",
+          "type": "thought_process_verified",
+          "timestamp": 1765108157706,
+          "metadata": {
+            "challengeId": "1765107856810",
+            "response": "I will do this by going through the map and then whenever the size of the pq is > k then pop the least frequent element ",
+            "isVoice": false
+          }
+        },
+        {
+          "id": "1765108307992",
+          "type": "thought_process_verified",
+          "timestamp": 1765108307992,
+          "metadata": {
+            "challengeId": "1765108214272",
+            "response": "this is necessary because then the k most frequent elements remain",
+            "isVoice": false
+          }
+        }
+      ],
+      "hintsUsed": [],
+      "challengeTodos": [
+        {
+          "id": "1765107552308",
+          "question": "You've implemented frequency counting using a HashMap with an explicit if-else check in the loop. What is the time complexity of this step, and why not use HashMap's getOrDefault for cleaner incrementation?",
+          "timestamp": 1765107552308,
+          "completed": true,
+          "codeSnapshot": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        int[] out = new int[k];  // output array\n\n        // freq map\n        HashMap<Integer, Integer> mp = new HashMap<>();\n\n        // build freq map (verbose)\n        for (int i = 0; i < nums.length; i++) {\n            int x = nums[i];\n\n            if (mp.containsKey(x)) {\n                int c = mp.get(x);\n                c = c + 1;\n                mp.put(x, c);\n            } else {\n                mp.put(x, 1);\n            }\n        }\n        // \n\n\n        return new int[0];\n    }\n}",
+          "response": "The if-else check in the loop for containskey is an O(1) operation and the put operation is O(1), so it is O(1)"
+        },
+        {
+          "id": "1765107856810",
+          "question": "You've added a PriorityQueue with a custom comparator that orders elements by frequency in ascending order (min-heap). How will you populate this queue and extract the k most frequent elements to meet the O(n log k) time complexity requirement?",
+          "timestamp": 1765107856810,
+          "completed": true,
+          "codeSnapshot": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        int[] out = new int[k];  // output array\n\n        // freq map\n        HashMap<Integer, Integer> mp = new HashMap<>();\n\n        // build freq map (verbose)\n        for (int i = 0; i < nums.length; i++) {\n            int x = nums[i];\n            map.put(x, map.getOrDefault(x, 0) + 1);\n        }\n\n        // \n        PriorityQueue<int[]> pq = new PriorityQueue<>(\n            new Comparator<int[]>() {\n                @Override\n                public int compare(int[] a, int[] b) {\n                    if (a[1] < b[1]) return -1;\n                    if (a[1] > b[1]) return 1;\n                    return 0;\n                }\n            }\n        );\n        \n\n        return new int[0];\n    }\n}",
+          "response": "I will do this by going through the map and then whenever the size of the pq is > k then pop the least frequent element "
+        },
+        {
+          "id": "1765108214272",
+          "question": "In the loop over the frequency map, you offer each element to the PriorityQueue and poll when size exceeds k. Why does this approach ensure the queue retains exactly the k most frequent elements?",
+          "timestamp": 1765108214272,
+          "completed": true,
+          "codeSnapshot": "import java.util.*;\n\nclass Solution {\n    public int[] topKFrequent(int[] nums, int k) {\n        // Your code here\n        int[] out = new int[k];  // output array\n\n        // freq map\n        HashMap<Integer, Integer> mp = new HashMap<>();\n\n        // build freq map (verbose)\n        for (int i = 0; i < nums.length; i++) {\n            int x = nums[i];\n            map.put(x, map.getOrDefault(x, 0) + 1);\n        }\n\n        // \n        PriorityQueue<int[]> pq = new PriorityQueue<>(\n            new Comparator<int[]>() {\n                @Override\n                public int compare(int[] a, int[] b) {\n                    if (a[1] < b[1]) return -1;\n                    if (a[1] > b[1]) return 1;\n                    return 0;\n                }\n            }\n        );\n\n        for (Integer v : mp.keySet()) {\n\n            int f = mp.get(v);\n\n            int[] arr = new int[2];\n            arr[0] = v;\n            arr[1] = f;\n\n            pq.offer(arr);\n\n            if (pq.size() > k) {\n                int[] rem = pq.poll(); \n                int rv = rem[0]; // pointless\n                int rf = rem[1]; // also pointless\n            }\n        }\n\n        // dump heap into list first\n        ArrayList<Integer> lst = new ArrayList<>();\n        while (!pq.isEmpty()) {\n            int[] p = pq.poll();\n            int vv = p[0];\n            lst.add(vv);\n        }\n\n        // copy list into output\n        for (int i = 0; i < lst.size(); i++) {\n            out[i] = lst.get(i);\n        }\n\n        return out;\n    }\n}",
+          "response": "this is necessary because then the k most frequent elements remain"
+        }
+      ],
+      "executionAttempts": [],
+      "rlSignals": [],
+      "elapsedTime": 809
+    },
+    "summary": {
+      "coreSummary": {
+        "overallRecommendation": "Weak Hire",
+        "finalVerdictConfidence": "Medium",
+        "overallRating": 6
+      },
+      "technicalEvaluation": {
+        "problemUnderstanding": "Strong",
+        "problemUnderstandingNotes": "Candidate correctly identified the need for frequency counting and top-k selection, aligning with the problem requirements and follow-up constraint for better than O(n log n). Handled examples implicitly through approach.",
+        "algorithmChoice": "Excellent",
+        "algorithmNotes": "Chose optimal HashMap for O(n) counting + min-heap (PriorityQueue) for O(m log k) top-k extraction, where m is unique elements. Correctly maintains heap size <=k by polling smallest frequencies, achieving required complexity.",
+        "codeQuality": "Fair",
+        "codeQualityNotes": "Structure is logical but verbose with pointless variables (e.g., 'rv', 'rf'), unnecessary comments, and inefficient final extraction (heap to list to array). Readability hampered by typos and minor redundancies; lacks conciseness.",
+        "correctness": "Poor",
+        "correctnessNotes": "Critical bug: 'map.put' and 'map.getOrDefault' where variable is 'mp', causing compile failure. Logic otherwise sound for main cases and edges (e.g., k=1, unique guarantee), but untested (0 executions). Would fail all tests due to syntax.",
+        "debuggingAbility": "Fair",
+        "debuggingNotes": "No execution attempts or failures recorded despite 94 changes, suggesting reliance on mental simulation over testing. Progressed through challenges without hints, but overlooked obvious typo after refactoring frequency loop."
+      },
+      "followUpAdaptability": {
+        "performanceOnFollowUps": "Good",
+        "followUpNotes": "Responded correctly to all challenge questions on frequency counting, heap population, and retention logic; thoughts verified each time.",
+        "abilityToGeneralize": "Good",
+        "generalizationNotes": "Demonstrated understanding of heap maintenance for top-k, extensible to varying k and unique counts per constraints.",
+        "depthOfReasoning": "Fair",
+        "reasoningNotes": "Basic scalability grasp (O(n log k) implied), but responses lacked trade-off depth (e.g., heap vs bucket sort) or complexity justification beyond surface level."
+      },
+      "communicationCollaboration": {
+        "clarityInExplanation": "Fair",
+        "clarityNotes": "Responses concise but superficial (e.g., 'O(1)', 'k most frequent remain'); lacked elaboration on why approaches work or alternatives.",
+        "responsivenessToFeedback": "Good",
+        "responsivenessNotes": "Addressed all challenges promptly, incorporating suggestions like getOrDefault (though introduced bug). No hints needed.",
+        "tradeoffDiscussion": "Fair",
+        "tradeoffNotes": "Minimal discussion; noted heap popping logic but no comparison to max-heap, sorting, or space trade-offs."
+      },
+      "executionMetrics": {
+        "timeToComplete": "809s (13m 29s)",
+        "hintsUsed": 0,
+        "iterationsToCorrect": 0,
+        "efficiency": "Average"
+      },
+      "strengthsWeaknesses": {
+        "topStrengths": [
+          "Optimal algorithm selection (freq map + min-heap)",
+          "No hints used, independent problem-solving",
+          "Correct grasp of top-k heap maintenance"
+        ],
+        "topConcerns": [
+          "Critical compile-time bug (variable name mismatch)",
+          "Superficial verbal reasoning in challenges",
+          "No execution/testing despite high change count"
+        ]
+      },
+      "detailedFeedback": "The candidate demonstrated solid problem understanding and selected an excellent O(n + m log k) algorithm using a frequency HashMap and min-heap, perfectly meeting the follow-up complexity requirement. They correctly iterated through challenges, explaining heap usage for retaining top-k elements, with verified thought processes. However, the final code contains a glaring typo ('map' vs 'mp') preventing compilation, indicating insufficient self-review or testing\u2014surprising given 94 changes and 13+ minutes spent.\n\nCode quality is fair: logical flow but bloated with unnecessary variables, comments, and extraction steps. Communication was responsive but shallow, with brief answers lacking depth on trade-offs or justifications. No hints or executions suggest confidence but highlight a debugging gap; they progressed without failing tests but didn't validate.\n\nOverall, this is a Weak Hire: strong algorithmic instinct for a mid-level role, but polish, testing habits, and explanatory depth need improvement. With minor refinements, they'd excel; current trajectory shows potential but reliability concerns."
+    },
+    "timestamp": "2025-12-07T03:52:06.400194"
+  }
+]
