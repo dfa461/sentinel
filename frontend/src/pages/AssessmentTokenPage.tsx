@@ -35,19 +35,30 @@ export function AssessmentTokenPage() {
       if (response.ok) {
         const data = await response.json();
 
-        // Generate custom question from resume
-        const questionResponse = await fetch(`${API_BASE}/generate-question-from-resume`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            resume_text: 'Resume analysis placeholder - file upload handling needed'
-          })
-        });
-
+        // Generate custom question from resume by uploading the file
         let customQuestion = null;
-        if (questionResponse.ok) {
-          const questionData = await questionResponse.json();
-          customQuestion = questionData.question;
+        try {
+          const formData = new FormData();
+          formData.append('file', resumeFile);
+
+          const questionResponse = await fetch(`${API_BASE}/generate-question-from-resume`, {
+            method: 'POST',
+            body: formData
+            // Note: Don't set Content-Type header - browser will set it with boundary
+          });
+
+          if (questionResponse.ok) {
+            const questionData = await questionResponse.json();
+            customQuestion = questionData.question;
+            console.log('[Assessment] Generated custom question from resume:', customQuestion);
+          } else {
+            const errorData = await questionResponse.json().catch(() => ({ detail: 'Unknown error' }));
+            console.error('[Assessment] Failed to generate question:', errorData.detail);
+            // Continue with assessment even if question generation fails
+          }
+        } catch (error) {
+          console.error('[Assessment] Error generating question from resume:', error);
+          // Continue with assessment even if question generation fails
         }
 
         // Navigate to interactive assessment with token, resume, and custom question
@@ -119,7 +130,7 @@ export function AssessmentTokenPage() {
             <div className="border-2 border-dashed border-slate-700 rounded-lg p-6 text-center hover:border-blue-500/50 transition-colors">
               <input
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,.txt"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
                     setResumeFile(e.target.files[0]);
@@ -133,7 +144,7 @@ export function AssessmentTokenPage() {
                 <p className="text-sm text-slate-300">
                   {resumeFile ? resumeFile.name : 'Click to upload resume'}
                 </p>
-                <p className="text-xs text-slate-500">PDF, DOC, or DOCX</p>
+                <p className="text-xs text-slate-500">PDF or TXT</p>
               </label>
             </div>
           </div>

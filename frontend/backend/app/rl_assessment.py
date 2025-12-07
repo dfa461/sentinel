@@ -675,6 +675,7 @@ async def analyze_resume(
     Analyze candidate's resume using Grok AI to recommend the best coding problem.
     Returns the recommended problem with personalized assessment.
     """
+    print("ANALYZING RESUME")
     try:
         # Read resume content
         resume_content = await resume.read()

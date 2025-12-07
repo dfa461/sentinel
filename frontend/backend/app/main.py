@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -12,6 +12,8 @@ from xai_sdk import AsyncClient
 from xai_sdk.chat import user, system
 from xdk import Client as XClient
 import httpx
+import PyPDF2
+import io
 from .rl_assessment import router as rl_router
 from .github_extractor import GitHubExtractor
 
@@ -52,7 +54,7 @@ if X_BEARER_TOKEN:
 github_extractor = GitHubExtractor(GITHUB_TOKEN) if GITHUB_TOKEN else None
 
 # In-memory storage for candidates
-pending_candidates_db: Dict[str, Any] = {}  # username -> candidate data
+pending_candidates_db: Dict[str, Any] = {"DEBUG": {}}  # username -> candidate data
 assessed_candidates_db: Dict[str, Any] = {}  # username -> assessment data
 assessment_tokens_db: Dict[str, str] = {}  # token -> username mapping
 
@@ -641,17 +643,21 @@ class VerifyAssessmentRequest(BaseModel):
     name: str
 
 
+DEBUG_NO_VERIFY = False
 @app.post("/verify-assessment-token")
 async def verify_assessment_token(request: VerifyAssessmentRequest):
     """Verify assessment token and candidate info before starting assessment"""
 
-    if request.token not in assessment_tokens_db:
+    if request.token not in assessment_tokens_db and not DEBUG_NO_VERIFY:
         raise HTTPException(status_code=404, detail="Invalid or expired assessment link")
 
-    username = assessment_tokens_db[request.token]
+    if DEBUG_NO_VERIFY:
+        username = "DEBUG"
+    else:
+        username = assessment_tokens_db[request.token]
 
     # Verify candidate exists
-    if username not in pending_candidates_db:
+    if username not in pending_candidates_db and not DEBUG_NO_VERIFY:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     candidate = pending_candidates_db[username]
@@ -718,45 +724,93 @@ async def test_x_search():
         }
 
 
+async def extract_text_from_resume(file: UploadFile) -> str:
+    """Extract text from uploaded resume file (PDF or TXT)"""
+
+    content = await file.read()
+
+    # Handle PDF files
+    if file.filename.lower().endswith('.pdf'):
+        try:
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+            text_parts = []
+            for page in pdf_reader.pages:
+                text_parts.append(page.extract_text())
+
+            return "\n".join(text_parts)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse PDF: {str(e)}")
+
+    # Handle text files
+    elif file.filename.lower().endswith('.txt'):
+        try:
+            return content.decode('utf-8')
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse text file: {str(e)}")
+
+    # Handle DOCX files
+    elif file.filename.lower().endswith('.docx'):
+        raise HTTPException(status_code=400, detail="DOCX files not yet supported. Please upload PDF or TXT.")
+
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file format. Please upload PDF or TXT file.")
+
+
 @app.post("/generate-question-from-resume")
-async def generate_question_from_resume(file: Any = None):
+async def generate_question_from_resume(file: UploadFile = File(...)):
     """
     Generate a custom coding question based on uploaded resume.
     Uses Grok to analyze resume and create relevant problem + test cases.
+
+    Args:
+        file: Resume file (PDF or TXT format)
     """
 
-    # For now, accept resume text directly in the request body
-    # In production, handle file upload with multipart/form-data
-
     try:
-        # TODO: Extract text from uploaded PDF/DOCX resume
-        # For now, we'll use a placeholder
+        # Extract text from uploaded resume
+        print(f"[Resume] Extracting text from {file.filename}...")
+        resume_text = await extract_text_from_resume(file)
 
-        resume_analysis_prompt = """Analyze this candidate's resume and generate a custom coding problem that matches their background.
+        if not resume_text or len(resume_text.strip()) < 50:
+            raise HTTPException(status_code=400, detail="Resume appears to be empty or too short")
+
+        print(f"[Resume] Extracted {len(resume_text)} characters")
+        print(f"[Resume] First 200 chars: {resume_text[:200]}")
+
+        # Use Grok to analyze resume and generate custom question
+        resume_analysis_prompt = f"""Analyze this candidate's resume and generate a custom coding problem that matches their background.
+
+Resume:
+{resume_text}
 
 The problem should:
-1. Be relevant to their experience level and domain
+1. Be relevant to their experience level and domain (based on skills, projects, and work history in resume)
 2. Have 2-3 test cases with clear input/output
 3. Be completable in 20-30 minutes
 4. Test practical skills mentioned in their resume
+5. If they have experience with specific technologies (e.g., ML, systems, web dev), tailor the problem accordingly
 
 Return ONLY a JSON object:
-{
+{{
     "problem_title": "Problem Title",
     "problem_description": "Detailed description in markdown format with constraints and examples",
     "starter_code_python": "def function_name():\\n    pass",
-    "starter_code_java": "class Solution { }",
+    "starter_code_java": "class Solution {{ }}",
     "test_cases": [
-        {"input": "example input", "output": "expected output"},
-        {"input": "another input", "output": "expected output"}
+        {{"input": "example input", "output": "expected output", "explanation": "why this is the expected output"}},
+        {{"input": "another input", "output": "expected output", "explanation": "why this is the expected output"}}
     ],
-    "difficulty": "medium",
-    "topics": ["arrays", "hash tables"]
-}"""
+    "difficulty": "easy|medium|hard",
+    "topics": ["relevant", "topic", "tags"],
+    "reasoning": "Brief explanation of why this problem is relevant to this candidate"
+}}"""
 
+        print("[Resume] Calling Grok API to generate personalized question...")
         grok_response = await call_grok_api(
             [{"role": "user", "content": resume_analysis_prompt}],
-            temperature=0.5
+            temperature=0.6
         )
 
         # Parse response
@@ -766,11 +820,17 @@ Return ONLY a JSON object:
 
         question_data = json.loads(json_match.group(0))
 
+        print(f"[Resume] Generated question: {question_data.get('problem_title', 'N/A')}")
+        print(f"[Resume] Reasoning: {question_data.get('reasoning', 'N/A')}")
+
         return {
             "success": True,
-            "question": question_data
+            "question": question_data,
+            "resume_length": len(resume_text)
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error generating question from resume: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to generate question: {str(e)}")
