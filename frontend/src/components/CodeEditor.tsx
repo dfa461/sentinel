@@ -10,7 +10,7 @@ interface CodeEditorProps {
 
 export function CodeEditor({ code, onChange, language, readOnly = false }: CodeEditorProps) {
   return (
-    <div className="h-full w-full rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+    <div className="h-full w-full">
       <Editor
         height="100%"
         language={language}
@@ -26,7 +26,7 @@ export function CodeEditor({ code, onChange, language, readOnly = false }: CodeE
           tabSize: 2,
           wordWrap: 'on',
           readOnly,
-          padding: { top: 16, bottom: 16 },
+          padding: { top: 0, bottom: 0 },
           fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
           fontLigatures: true,
           cursorBlinking: 'smooth',

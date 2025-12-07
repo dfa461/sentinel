@@ -107,6 +107,15 @@ export interface RLFeedbackSignal {
   };
 }
 
+export interface ChallengeTodo {
+  id: string;
+  question: string;
+  timestamp: number;
+  completed: boolean;
+  response?: string;
+  codeSnapshot: string; // Code state when challenge was created
+}
+
 export interface AssessmentState {
   currentCode: string;
   progressMetrics: ProgressMetrics;
@@ -115,4 +124,5 @@ export interface AssessmentState {
   hintsUsed: AdaptiveHint[];
   executionAttempts: CodeExecutionResult[];
   rlSignals: RLFeedbackSignal[];
+  challengeTodos: ChallengeTodo[];
 }

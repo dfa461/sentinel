@@ -73,21 +73,6 @@ DEFAULT_ACTION_WEIGHTS = {
 }
 
 
-class SocraticQuestionRequest(BaseModel):
-    code: str
-    problem: str
-    language: str
-    pauseDuration: float
-    progressMetrics: Dict[str, Any]  # Accept as dict
-
-
-class ThoughtProcessEvaluationRequest(BaseModel):
-    question: str
-    response: str
-    code: str
-    problem: str
-
-
 class AdaptiveHintRequest(BaseModel):
     code: str
     problem: str
@@ -99,6 +84,7 @@ class AdaptiveHintRequest(BaseModel):
 
 class ProgressMonitorRequest(BaseModel):
     code: str
+    previousChallengeCode: str  # Code from last challenge to compare against
     problem: str
     language: str
     progressMetrics: Dict[str, Any]  # Accept as dict
@@ -637,163 +623,6 @@ async def rl_session_step(step: RLSessionStepRequest):
         "rationale": rationale,
         "sessionExpired": expired,
     }
-@router.post("/generate-socratic-question")
-async def generate_socratic_question(request: SocraticQuestionRequest):
-    """
-    Generate a Socratic question based on pause detection.
-    Uses online RL to adapt question difficulty and type.
-    """
-
-    socratic_prompt = f"""You are a Socratic teacher using AI to guide software engineering candidates through problem-solving.
-
-**Context:**
-The candidate paused for {request.pauseDuration:.1f} seconds while solving:
-{request.problem}
-
-**Current Code (in {request.language}):**
-```{request.language}
-{request.code}
-```
-
-**Progress Metrics:**
-- Lines written: {request.progressMetrics.get('linesWritten', 0)}
-- Code complexity: {request.progressMetrics.get('codeComplexity', 0)}/100
-- Total changes: {request.progressMetrics.get('totalChanges', 0)}
-- Consecutive failures: {request.progressMetrics.get('consecutiveFailures', 0)}
-
-**Your Task:**
-Generate a Socratic question that:
-1. Helps them think through their approach (don't give answers)
-2. Probes their understanding of what they've written
-3. Guides them toward the right track if they're stuck
-4. Is specific to their code, not generic
-
-**Question Types:**
-- Guiding: "What are you trying to accomplish in this section?"
-- Probing: "Why did you choose this data structure?"
-- Challenging: "What edge cases might this approach miss?"
-- Clarifying: "Can you explain your thought process here?"
-
-**Respond ONLY with JSON:**
-{{
-    "question": "Your Socratic question here",
-    "expectedInsights": ["What you hope they'll realize"],
-    "difficulty": "guiding" | "probing" | "challenging"
-}}"""
-
-    try:
-        response = await call_grok_api(
-            [{"role": "user", "content": socratic_prompt}],
-            temperature=0.6
-        )
-
-        # Parse JSON response
-        json_start = response.find("{")
-        json_end = response.rfind("}") + 1
-        if json_start != -1 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            result = json.loads(json_str)
-            return result
-        else:
-            # Fallback question
-            return {
-                "question": "Can you walk me through your thinking on this approach?",
-                "expectedInsights": ["Understanding their reasoning"],
-                "difficulty": "guiding"
-            }
-
-    except Exception as e:
-        print(f"Error generating Socratic question: {e}")
-        return {
-            "question": "What's your strategy for solving this problem?",
-            "expectedInsights": ["Overall approach"],
-            "difficulty": "guiding"
-        }
-
-
-@router.post("/evaluate-thought-process")
-async def evaluate_thought_process(request: ThoughtProcessEvaluationRequest):
-    """
-    Evaluate candidate's thought process and provide feedback.
-    This is the key RL component - we learn from these interactions.
-    """
-
-    evaluation_prompt = f"""You are an expert technical interviewer evaluating a candidate's thought process.
-
-**Question Asked:**
-{request.question}
-
-**Candidate's Response:**
-{request.response}
-
-**Their Current Code:**
-```
-{request.code}
-```
-
-**Problem:**
-{request.problem}
-
-**Your Task:**
-Evaluate if the candidate is on the right track. Consider:
-1. Do they understand what they're doing?
-2. Is their reasoning sound?
-3. Are they making progress toward a solution?
-4. Do they show problem-solving skills?
-
-**Be encouraging but honest.** If they're off track, gently guide them.
-
-**Respond ONLY with JSON:**
-{{
-    "isOnRightTrack": true/false,
-    "feedback": "Specific, constructive feedback (2-3 sentences)",
-    "confidence": 0.0-1.0,
-    "suggestedDirection": "If off track, what should they consider?"
-}}"""
-
-    try:
-        response = await call_grok_api(
-            [{"role": "user", "content": evaluation_prompt}],
-            temperature=0.4
-        )
-
-        json_start = response.find("{")
-        json_end = response.rfind("}") + 1
-        if json_start != -1 and json_end > json_start:
-            json_str = response[json_start:json_end]
-            evaluation = json.loads(json_str)
-
-            # Record RL training data
-            rl_training_data.append({
-                "type": "thought_process_evaluation",
-                "question": request.question,
-                "response": request.response,
-                "code": request.code,
-                "evaluation": evaluation,
-                "timestamp": datetime.now().isoformat(),
-            })
-
-            return {"evaluation": evaluation}
-        else:
-            return {
-                "evaluation": {
-                    "isOnRightTrack": True,
-                    "feedback": "Good thinking! Keep going with your current approach.",
-                    "confidence": 0.5
-                }
-            }
-
-    except Exception as e:
-        print(f"Error evaluating thought process: {e}")
-        return {
-            "evaluation": {
-                "isOnRightTrack": True,
-                "feedback": "Continue with your approach and see where it leads.",
-                "confidence": 0.5
-            }
-        }
-
-
 @router.post("/generate-adaptive-hint")
 async def generate_adaptive_hint(request: AdaptiveHintRequest):
     """
@@ -894,7 +723,20 @@ async def monitor_progress(request: ProgressMonitorRequest):
     This is the "Watcher" agent that probes candidate understanding.
     """
 
-    # Analyze code and determine if a challenge question is needed
+    # Build the prompt with comparison to previous challenge code
+    previous_code_section = ""
+    if request.previousChallengeCode:
+        previous_code_section = f"""
+**Previous Code (from last challenge):**
+```{request.language}
+{request.previousChallengeCode}
+```
+
+**IMPORTANT:** Only generate a new challenge if there has been SIGNIFICANT progress since the previous code. Compare the two code snapshots to determine if enough has changed to warrant a new challenge question."""
+    else:
+        previous_code_section = """
+**Note:** This is the first check, so no previous challenge exists. Generate a challenge if the candidate has written substantial initial code."""
+
     watcher_prompt = f"""You are a technical interviewer AI analyzing a candidate's code in real-time during an assessment.
 
 **Problem:** {request.problem}
@@ -903,6 +745,7 @@ async def monitor_progress(request: ProgressMonitorRequest):
 ```{request.language}
 {request.code}
 ```
+{previous_code_section}
 
 **Progress Metrics:**
 - Lines: {request.progressMetrics.get('linesWritten', 0)}
@@ -913,14 +756,21 @@ async def monitor_progress(request: ProgressMonitorRequest):
 {json.dumps(request.monitoringEvents[-5:] if len(request.monitoringEvents) > 5 else request.monitoringEvents, indent=2)}
 
 **Your Task:**
-Analyze this code snippet and determine if a challenge question is needed. You should intervene with a challenge if:
-1. The candidate has written significant code and should be challenged to explain their reasoning
-2. The candidate appears to be making good progress and you want to probe their understanding
-3. The candidate has made an interesting design choice worth exploring
+Analyze the CURRENT code compared to the PREVIOUS code (if any) and determine if a challenge question is needed.
 
-**Important Guidelines:**
+**Criteria for generating a challenge:**
+1. There has been SIGNIFICANT new progress since the last challenge (e.g., new function, new logic, meaningful refactoring)
+2. The candidate has made an interesting design choice worth exploring
+3. The code has evolved enough to warrant probing their understanding
+
+**DO NOT generate a challenge if:**
+- The changes are minor (small edits, formatting, simple bug fixes)
+- Not enough progress has been made since the last challenge
+- The code is still very similar to the previous snapshot
+
+**Challenge Guidelines:**
 - Ask thought-provoking questions like: "Why did you choose this approach?", "What edge cases haven't you considered?", "What's the time complexity?", "How would this scale?"
-- Don't intervene too frequently - let them code
+- Focus on NEW aspects of the code that weren't present in the previous snapshot
 - Only use challenges to probe understanding, NOT to give hints (users can request hints separately)
 
 **Output Format (respond in JSON only):**
