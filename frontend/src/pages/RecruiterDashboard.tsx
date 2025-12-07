@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, Shield, Share2, Download, Sun, BarChart3, Brain, Clock, Zap, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ArrowLeft, Code2, MessageSquare, Trophy, Filter, ChevronDown, Share2, Download, Sun, BarChart3, Brain, Clock, Zap, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -526,9 +526,9 @@ export function RecruiterDashboard() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors"
+            className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity group"
           >
-            <Shield className="w-6 h-6" />
+            <img src="/sentinel-logo.png" alt="Sentinel" className="w-14 h-14 group-hover:scale-105 transition-transform" />
             <span className="text-xl font-bold">Sentinel</span>
           </button>
           <h1 className="text-lg font-semibold text-slate-300">Recruiter Dashboard</h1>
