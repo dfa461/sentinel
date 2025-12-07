@@ -137,12 +137,18 @@ Extract:
 
 Return ONLY a JSON object:
 {{
-    "primary_keywords": ["keyword1", "keyword2", "keyword3"],
-    "technical_terms": ["term1", "term2"],
-    "search_queries": ["query1 for X search", "query2 for X search", ...]
+    "primary_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+    "technical_terms": ["tech1", "tech2", "tech3", "tech4"],
+    "search_queries": [
+        "specific query with all key terms",
+        "broader query with main terms",
+        "keyword-based query 1",
+        "keyword-based query 2",
+        "alternative phrasing"
+    ]
 }}
 
-The search_queries should be optimized for finding engineers on X who work in this domain."""
+Make search_queries diverse and progressively broader. Include both formal (e.g., "machine learning engineer") and informal (e.g., "ML dev") variations."""
 
         jd_response = await call_grok_api(
             [{"role": "user", "content": jd_parsing_prompt}],
@@ -164,28 +170,49 @@ The search_queries should be optimized for finding engineers on X who work in th
         discovered_users = {}  # username -> {posts, bio, github_links}
         search_queries = jd_profile.get('search_queries', [])
 
-        TARGET_USERS = request.max_results * 3  # Try to find 3x more users than needed
-        MAX_USERS = 50  # Hard cap to avoid too many API calls
+        TARGET_USERS = request.max_results * 10  # Try to find 3x more users than needed
+        MAX_USERS = 5000  # Hard cap to avoid too many API calls
 
-        # Progressive broadening strategy
+        # Progressive broadening strategy - get more aggressive
+        primary_keywords = jd_profile.get('primary_keywords', [])
+        technical_terms = jd_profile.get('technical_terms', [])
+
         search_attempts = [
             {
                 'queries': search_queries[:2],  # Most specific queries
-                'suffix': ' github.com -is:retweet',  # Must have GitHub
+                'suffix': ' github.com -is:retweet',  # Must have GitHub in post
                 'max_results': 20,
-                'description': 'Specific + GitHub required'
+                'description': 'Level 1: Specific queries + GitHub required'
             },
             {
-                'queries': search_queries[:3],  # Broader set of queries
-                'suffix': ' -is:retweet',  # No GitHub requirement
+                'queries': search_queries[:4],  # More queries
+                'suffix': ' -is:retweet',  # Remove GitHub filter
                 'max_results': 30,
-                'description': 'Broader search, no GitHub filter'
+                'description': 'Level 2: Broader queries, no GitHub filter'
             },
             {
-                'queries': jd_profile.get('primary_keywords', [])[:2],  # Just keywords
+                'queries': primary_keywords[:3],  # Just primary keywords
                 'suffix': ' -is:retweet',
                 'max_results': 50,
-                'description': 'Keyword-based, very broad'
+                'description': 'Level 3: Primary keywords only'
+            },
+            {
+                'queries': technical_terms[:3],  # Just technical terms
+                'suffix': '',  # Include retweets too
+                'max_results': 100,
+                'description': 'Level 4: Technical terms + retweets allowed'
+            },
+            {
+                'queries': [f"{kw} developer" for kw in primary_keywords[:2]],  # Combine with "developer"
+                'suffix': '',
+                'max_results': 100,
+                'description': 'Level 5: Keywords + "developer"'
+            },
+            {
+                'queries': [f"{kw} engineer" for kw in technical_terms[:2]],  # Combine with "engineer"
+                'suffix': '',
+                'max_results': 100,
+                'description': 'Level 6: Technical terms + "engineer"'
             }
         ]
 
@@ -204,7 +231,10 @@ The search_queries should be optimized for finding engineers on X who work in th
                     full_query = search_query + attempt['suffix']
                     print(f"[Stage 2] Searching: {full_query}")
 
-                    # Search posts matching the query
+                    # Search posts matching the query - fetch multiple pages
+                    pages_fetched = 0
+                    max_pages = 3  # Fetch up to 3 pages per query for broader results
+
                     for page in x_client.posts.search_recent(
                         query=full_query,
                         max_results=attempt['max_results'],
@@ -217,7 +247,7 @@ The search_queries should be optimized for finding engineers on X who work in th
                         includes = getattr(page, 'includes', {})
                         users_data = includes.get('users', []) if isinstance(includes, dict) else []
 
-                        print(f"[Stage 2] Query '{full_query[:60]}...' -> {len(page_data)} posts")
+                        print(f"[Stage 2] Page {pages_fetched + 1}: '{full_query[:50]}...' -> {len(page_data)} posts")
 
                         for post in page_data:
                             if len(discovered_users) >= MAX_USERS:
@@ -272,10 +302,13 @@ The search_queries should be optimized for finding engineers on X who work in th
                                 if full_query not in discovered_users[author_username]['matched_queries']:
                                     discovered_users[author_username]['matched_queries'].append(full_query)
 
-                        # Only get first page per query
-                        break
+                        pages_fetched += 1
 
-                    print(f"[Stage 2] Query found {len(discovered_users)} total users so far")
+                        # Stop if we have enough users or hit page limit
+                        if len(discovered_users) >= MAX_USERS or pages_fetched >= max_pages:
+                            break
+
+                    print(f"[Stage 2] Query fetched {pages_fetched} pages, {len(discovered_users)} total users so far")
 
                 except Exception as e:
                     print(f"[Stage 2] Error with query '{search_query}': {e}")
@@ -286,7 +319,7 @@ The search_queries should be optimized for finding engineers on X who work in th
         # Stage 3: Enrich with bio analysis
         print(f"[Stage 3] Fetching user bios...")
 
-        usernames_to_lookup = list(discovered_users.keys())[:50]  # Limit API calls
+        usernames_to_lookup = list(discovered_users.keys())
         if usernames_to_lookup:
             try:
                 users_response = x_client.users.get_by_usernames(
