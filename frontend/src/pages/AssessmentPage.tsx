@@ -7,61 +7,14 @@ import { InterventionModal } from '../components/InterventionModal';
 import { TestResults } from '../components/TestResults';
 import { debounce } from '../lib/utils';
 import type { Problem, Intervention, CodeSnapshot, CandidateResponse } from '../types';
-
-// Mock problem for demo
-const MOCK_PROBLEM: Problem = {
-  id: 'two-sum',
-  title: 'Two Sum',
-  description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
-
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
-
-You can return the answer in any order.
-
-**Constraints:**
-- 2 <= nums.length <= 10^4
-- -10^9 <= nums[i] <= 10^9
-- -10^9 <= target <= 10^9
-- Only one valid answer exists.
-
-**Example 1:**
-Input: nums = [2,7,11,15], target = 9
-Output: [0,1]
-Explanation: Because nums[0] + nums[1] == 9, we return [0, 1].
-
-**Example 2:**
-Input: nums = [3,2,4], target = 6
-Output: [1,2]`,
-  starterCode: {
-    python: `def twoSum(nums, target):
-    # Your code here
-    pass`,
-    javascript: `function twoSum(nums, target) {
-    // Your code here
-}`,
-  },
-  testCases: [
-    {
-      input: '[2,7,11,15], 9',
-      output: '[0, 1]',
-    },
-    {
-      input: '[3,2,4], 6',
-      output: '[1, 2]',
-    },
-    {
-      input: '[3,3], 6',
-      output: '[0, 1]',
-    },
-  ],
-};
+import { MERGE_INTERVALS } from '../data/problems';
 
 const API_BASE = 'http://localhost:8000';
 
 export function AssessmentPage() {
-  const [problem] = useState<Problem>(MOCK_PROBLEM);
+  const [problem] = useState<Problem>(MERGE_INTERVALS);
   const [language, setLanguage] = useState('python');
-  const [code, setCode] = useState(MOCK_PROBLEM.starterCode.python);
+  const [code, setCode] = useState(MERGE_INTERVALS.starterCode.python);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentHint, setCurrentHint] = useState<string | null>(null);
   const [currentIntervention, setCurrentIntervention] = useState<Intervention | null>(null);
@@ -140,7 +93,7 @@ export function AssessmentPage() {
 
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
-    setCode(MOCK_PROBLEM.starterCode[newLang] || '');
+    setCode(MERGE_INTERVALS.starterCode[newLang] || '');
   };
 
   const handleInterventionResponse = (response: string, isVoice: boolean) => {
