@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Code2, Send, Activity } from 'lucide-react';
+import { Code2, Send, Activity, CheckCircle2, Circle, ChevronDown } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CodeEditor } from '../components/CodeEditor';
 import { ProblemPanel } from '../components/ProblemPanel';
@@ -18,6 +18,7 @@ import type {
   CodeExecutionResult,
   MonitoringEvent,
   RLFeedbackSignal,
+  ChallengeTodo,
 } from '../types/monitoring';
 import { MERGE_INTERVALS } from '../data/problems';
 
@@ -70,6 +71,10 @@ export function InteractiveAssessmentPage() {
   const [monitoringEvents, setMonitoringEvents] = useState<MonitoringEvent[]>([]);
   const [rlSignals, setRlSignals] = useState<RLFeedbackSignal[]>([]);
 
+  // Challenge TODO states
+  const [challengeTodos, setChallengeTodos] = useState<ChallengeTodo[]>([]);
+  const [isTodoDropdownOpen, setIsTodoDropdownOpen] = useState(false);
+
   // Refs for tracking
   const startTimeRef = useRef(Date.now());
   const lastActivityRef = useRef(Date.now());
@@ -78,11 +83,25 @@ export function InteractiveAssessmentPage() {
   const noProgressCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const codeBeforePauseRef = useRef(code);
   const monitoringEventsRef = useRef<MonitoringEvent[]>(monitoringEvents);
+  const lastChallengeCodeRef = useRef<string>(''); // Track code snapshot from last challenge
 
   // Keep ref in sync with state
   useEffect(() => {
     monitoringEventsRef.current = monitoringEvents;
   }, [monitoringEvents]);
+
+  // Close TODO dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isTodoDropdownOpen && !target.closest('.todo-dropdown-container')) {
+        setIsTodoDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTodoDropdownOpen]);
 
   // Timer
   useEffect(() => {
@@ -152,7 +171,7 @@ export function InteractiveAssessmentPage() {
       ) {
         handleNoProgressDetected();
       }
-    }, 30000); // Check every 30 seconds
+    }, 5000); // Check every 5 seconds
 
     return () => {
       if (noProgressCheckIntervalRef.current) {
@@ -229,21 +248,14 @@ export function InteractiveAssessmentPage() {
     // Update activity tracking
     lastActivityRef.current = Date.now();
 
-    // Update progress metrics
-    setProgressMetrics((prev) => {
-      const newMetrics = {
-        ...prev,
-        linesWritten: newCode.split('\n').length,
-        lastChangeTimestamp: Date.now(),
-        totalChanges: prev.totalChanges + 1,
-        codeComplexity: calculateComplexity(newCode),
-      };
-
-      // Send snapshot for monitoring with the new metrics
-      debouncedSnapshotRef.current(newCode, newMetrics, monitoringEventsRef.current, language);
-
-      return newMetrics;
-    });
+    // Update progress metrics (no debounced snapshot call anymore)
+    setProgressMetrics((prev) => ({
+      ...prev,
+      linesWritten: newCode.split('\n').length,
+      lastChangeTimestamp: Date.now(),
+      totalChanges: prev.totalChanges + 1,
+      codeComplexity: calculateComplexity(newCode),
+    }));
   };
 
   const calculateComplexity = (code: string): number => {
@@ -253,45 +265,50 @@ export function InteractiveAssessmentPage() {
     return Math.min(100, (lines + keywords * 2) / 2);
   };
 
-  // Use useRef to create a stable debounced function that doesn't get recreated
-  const debouncedSnapshotRef = useRef(
-    debounce(async (currentCode: string, metrics: any, events: any, lang: string) => {
+  // Fixed interval monitoring - snapshots code every 30 seconds
+  useEffect(() => {
+    const monitoringInterval = setInterval(async () => {
       try {
         const response = await fetch(`${RL_API_BASE}/monitor-progress`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            code: currentCode,
+            code,
+            previousChallengeCode: lastChallengeCodeRef.current,
             problem: problem.description,
-            language: lang,
-            progressMetrics: metrics,
-            monitoringEvents: events,
+            language,
+            progressMetrics,
+            monitoringEvents,
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
 
-          // Handle challenge interventions
+          // Add challenge questions to TODO list instead of showing immediately
           if (data.intervention_needed && data.type === 'challenge') {
-            const intervention: Intervention = {
+            const challengeTodo: ChallengeTodo = {
               id: Date.now().toString(),
-              type: 'challenge',
-              title: 'AI Challenge Question',
-              content: data.content,
+              question: data.content,
               timestamp: Date.now(),
-              mandatory: true,
-              voiceResponse: true,
+              completed: false,
+              codeSnapshot: code,
             };
-            setCurrentIntervention(intervention);
-            setIsModalOpen(true);
+            setChallengeTodos((prev) => [...prev, challengeTodo]);
+
+            // Update the last challenge code snapshot
+            lastChallengeCodeRef.current = code;
+          } else {
+            console.log('No intervention needed');
           }
         }
       } catch (error) {
         console.error('Error monitoring progress:', error);
       }
-    }, 5000)
-  );
+    }, 5000); // Check every 30 seconds
+
+    return () => clearInterval(monitoringInterval);
+  }, [code, problem.description, language, progressMetrics, monitoringEvents]);
 
   const handleThoughtProcessSubmit = async (response: string, isVoice: boolean) => {
     if (!thoughtProcessQuery) return;
@@ -393,6 +410,52 @@ export function InteractiveAssessmentPage() {
     }
   };
 
+  const handleChallengeTodoClick = (todo: ChallengeTodo) => {
+    // Open the intervention modal with the challenge question
+    const intervention: Intervention = {
+      id: todo.id,
+      type: 'challenge',
+      title: 'Challenge Question',
+      content: todo.question,
+      timestamp: todo.timestamp,
+      mandatory: true,
+      voiceResponse: true,
+    };
+    setCurrentIntervention(intervention);
+    setIsModalOpen(true);
+    setIsTodoDropdownOpen(false);
+  };
+
+  const handleInterventionResponse = (response: string, isVoice: boolean) => {
+    if (!currentIntervention) return;
+
+    // Mark the challenge TODO as completed
+    setChallengeTodos((prev) =>
+      prev.map((todo) =>
+        todo.id === currentIntervention.id
+          ? { ...todo, completed: true, response }
+          : todo
+      )
+    );
+
+    // Record monitoring event
+    const event: MonitoringEvent = {
+      id: Date.now().toString(),
+      type: 'thought_process_verified',
+      timestamp: Date.now(),
+      metadata: {
+        challengeId: currentIntervention.id,
+        response,
+        isVoice,
+      },
+    };
+    setMonitoringEvents((prev) => [...prev, event]);
+
+    // Close modal
+    setIsModalOpen(false);
+    setCurrentIntervention(null);
+  };
+
   const handleExecuteCode = async (): Promise<CodeExecutionResult> => {
     setIsExecuting(true);
     setExecutionAttemptCount((prev) => prev + 1);
@@ -479,7 +542,7 @@ export function InteractiveAssessmentPage() {
   return (
     <div className="h-screen flex flex-col bg-slate-900">
       {/* Header */}
-      <header className="glass-effect border-b border-slate-700 px-6 py-4">
+      <header className="glass-effect border-b border-slate-700 px-6 py-4 relative z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-2.5 rounded-xl relative">
@@ -500,9 +563,92 @@ export function InteractiveAssessmentPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Challenge TODOs Dropdown */}
+            {challengeTodos.length > 0 && (
+              <div className="relative todo-dropdown-container">
+                <button
+                  onClick={() => setIsTodoDropdownOpen(!isTodoDropdownOpen)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition-all ${
+                    challengeTodos.every((t) => t.completed)
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 animate-pulse'
+                  }`}
+                >
+                  {challengeTodos.filter((t) => !t.completed).length > 0 ? (
+                    <Circle className="w-4 h-4" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  <span>
+                    TODOs ({challengeTodos.filter((t) => !t.completed).length}/
+                    {challengeTodos.length})
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isTodoDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-96 glass-effect rounded-lg border border-slate-700 shadow-2xl z-[100] max-h-96 overflow-y-auto">
+                    <div className="p-4">
+                      <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                        Challenge Questions
+                      </h3>
+                      <div className="space-y-2">
+                        {challengeTodos.map((todo) => (
+                          <button
+                            key={todo.id}
+                            onClick={() => handleChallengeTodoClick(todo)}
+                            disabled={todo.completed}
+                            className={`w-full text-left p-3 rounded-lg transition-all ${
+                              todo.completed
+                                ? 'bg-green-500/10 border border-green-500/30 cursor-default'
+                                : 'bg-slate-800/50 border border-slate-700 hover:border-blue-500 cursor-pointer'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {todo.completed ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <Circle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className={`text-sm ${
+                                    todo.completed ? 'text-slate-500 line-through' : 'text-slate-200'
+                                  }`}
+                                >
+                                  {todo.question}
+                                </p>
+                                {todo.completed && todo.response && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    ✓ Answered
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Submit Button */}
             <button
               onClick={handleSubmit}
-              className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-green-500/50"
+              disabled={challengeTodos.some((t) => !t.completed)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg font-semibold transition-all shadow-lg ${
+                challengeTodos.some((t) => !t.completed)
+                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white hover:shadow-green-500/50'
+              }`}
+              title={
+                challengeTodos.some((t) => !t.completed)
+                  ? 'Complete all challenge questions first'
+                  : 'Submit assessment'
+              }
             >
               <Send className="w-4 h-4" />
               Submit
@@ -531,7 +677,7 @@ export function InteractiveAssessmentPage() {
           <Panel defaultSize={75} minSize={30}>
             <PanelGroup direction="vertical">
               {/* Code Editor - Resizable */}
-              <Panel defaultSize={60} minSize={30} className="p-4">
+              <Panel defaultSize={60} minSize={30}>
                 <CodeEditor code={code} onChange={handleCodeChange} language={language} />
               </Panel>
 
@@ -575,13 +721,10 @@ export function InteractiveAssessmentPage() {
         evaluation={thoughtEvaluation}
       />
 
-      {/* Original Intervention Modal */}
+      {/* Challenge Intervention Modal */}
       <InterventionModal
         intervention={currentIntervention}
-        onSubmit={(response, isVoice) => {
-          setIsModalOpen(false);
-          setCurrentIntervention(null);
-        }}
+        onSubmit={handleInterventionResponse}
         isOpen={isModalOpen}
       />
     </div>

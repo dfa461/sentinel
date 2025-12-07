@@ -98,6 +98,7 @@ class AdaptiveHintRequest(BaseModel):
 
 class ProgressMonitorRequest(BaseModel):
     code: str
+    previousChallengeCode: str  # Code from last challenge to compare against
     problem: str
     language: str
     progressMetrics: Dict[str, Any]  # Accept as dict
@@ -893,7 +894,20 @@ async def monitor_progress(request: ProgressMonitorRequest):
     This is the "Watcher" agent that probes candidate understanding.
     """
 
-    # Analyze code and determine if a challenge question is needed
+    # Build the prompt with comparison to previous challenge code
+    previous_code_section = ""
+    if request.previousChallengeCode:
+        previous_code_section = f"""
+**Previous Code (from last challenge):**
+```{request.language}
+{request.previousChallengeCode}
+```
+
+**IMPORTANT:** Only generate a new challenge if there has been SIGNIFICANT progress since the previous code. Compare the two code snapshots to determine if enough has changed to warrant a new challenge question."""
+    else:
+        previous_code_section = """
+**Note:** This is the first check, so no previous challenge exists. Generate a challenge if the candidate has written substantial initial code."""
+
     watcher_prompt = f"""You are a technical interviewer AI analyzing a candidate's code in real-time during an assessment.
 
 **Problem:** {request.problem}
@@ -902,6 +916,7 @@ async def monitor_progress(request: ProgressMonitorRequest):
 ```{request.language}
 {request.code}
 ```
+{previous_code_section}
 
 **Progress Metrics:**
 - Lines: {request.progressMetrics.get('linesWritten', 0)}
@@ -912,14 +927,21 @@ async def monitor_progress(request: ProgressMonitorRequest):
 {json.dumps(request.monitoringEvents[-5:] if len(request.monitoringEvents) > 5 else request.monitoringEvents, indent=2)}
 
 **Your Task:**
-Analyze this code snippet and determine if a challenge question is needed. You should intervene with a challenge if:
-1. The candidate has written significant code and should be challenged to explain their reasoning
-2. The candidate appears to be making good progress and you want to probe their understanding
-3. The candidate has made an interesting design choice worth exploring
+Analyze the CURRENT code compared to the PREVIOUS code (if any) and determine if a challenge question is needed.
 
-**Important Guidelines:**
+**Criteria for generating a challenge:**
+1. There has been SIGNIFICANT new progress since the last challenge (e.g., new function, new logic, meaningful refactoring)
+2. The candidate has made an interesting design choice worth exploring
+3. The code has evolved enough to warrant probing their understanding
+
+**DO NOT generate a challenge if:**
+- The changes are minor (small edits, formatting, simple bug fixes)
+- Not enough progress has been made since the last challenge
+- The code is still very similar to the previous snapshot
+
+**Challenge Guidelines:**
 - Ask thought-provoking questions like: "Why did you choose this approach?", "What edge cases haven't you considered?", "What's the time complexity?", "How would this scale?"
-- Don't intervene too frequently - let them code
+- Focus on NEW aspects of the code that weren't present in the previous snapshot
 - Only use challenges to probe understanding, NOT to give hints (users can request hints separately)
 
 **Output Format (respond in JSON only):**
