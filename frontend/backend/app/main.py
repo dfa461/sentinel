@@ -7,6 +7,8 @@ import json
 import httpx
 from datetime import datetime
 from dotenv import load_dotenv
+from xai_sdk import AsyncClient
+from xai_sdk.chat import user, system
 
 load_dotenv()
 
@@ -26,8 +28,12 @@ assessments_db: Dict[str, Any] = {}
 feedback_data: List[Dict[str, Any]] = []
 
 # Grok API configuration
+# Grok API configuration
 GROK_API_KEY = os.getenv("GROK_API_KEY")
-GROK_API_URL = os.getenv("GROK_API_URL", "https://api.x.ai/v1/chat/completions")
+
+# Create global xAI client
+# We explicitly pass the key to maintain compatibility with GROK_API_KEY env var
+xai_client = AsyncClient(api_key=GROK_API_KEY)
 
 
 class CodeSnapshot(BaseModel):
@@ -63,25 +69,29 @@ async def call_grok_api(messages: List[Dict[str, str]], temperature: float = 0.7
     if not GROK_API_KEY:
         raise HTTPException(status_code=500, detail="Grok API key not configured")
 
-    headers = {
-        "Authorization": f"Bearer {GROK_API_KEY}",
-        "Content-Type": "application/json",
-    }
+    try:
+        # Convert simple dict messages to SDK objects
+        sdk_messages = []
+        for msg in messages:
+            if msg["role"] == "user":
+                sdk_messages.append(user(msg["content"]))
+            elif msg["role"] == "system":
+                sdk_messages.append(system(msg["content"]))
+            # Add other roles if needed, but for now we mainly use user/system
+        
+        # Create chat session
+        chat = xai_client.chat.create(
+            model="grok-3",
+            messages=sdk_messages,
+            temperature=temperature
+        )
+        
+        # Get response
+        response = await chat.sample()
+        return response.content
 
-    payload = {
-        "model": "grok-beta",
-        "messages": messages,
-        "temperature": temperature,
-    }
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            response = await client.post(GROK_API_URL, headers=headers, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-        except httpx.HTTPError as e:
-            raise HTTPException(status_code=500, detail=f"Grok API error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Grok API error: {str(e)}")
 
 
 @app.get("/")
