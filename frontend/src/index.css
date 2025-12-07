@@ -28,3 +28,44 @@
     @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400;
   }
 }
+
+/* Resizable Panels Styles */
+@layer components {
+  /* Ensure panels handle overflow properly */
+  [data-panel] {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Custom resize handle styles */
+  [data-panel-resize-handle-id] {
+    position: relative;
+    transition: all 0.15s ease-in-out;
+  }
+
+  /* Horizontal resize handle (vertical line) */
+  [data-panel-resize-handle-id][data-resize-handle-state="hover"]::before,
+  [data-panel-resize-handle-id][data-resize-handle-state="drag"]::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 40px;
+    background: rgba(59, 130, 246, 0.5);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  /* Active state for resize handles */
+  [data-panel-resize-handle-id][data-resize-handle-state="drag"] {
+    background: rgba(59, 130, 246, 0.3) !important;
+  }
+
+  /* Smooth transitions for panel resizing */
+  [data-panel-group] {
+    transition: none;
+  }
+}

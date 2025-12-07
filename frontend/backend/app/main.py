@@ -9,10 +9,14 @@ from datetime import datetime
 from dotenv import load_dotenv
 from xai_sdk import AsyncClient
 from xai_sdk.chat import user, system
+from .rl_assessment import router as rl_router
 
 load_dotenv()
 
 app = FastAPI(title="Sentinel Assessment API")
+
+# Include RL router
+app.include_router(rl_router)
 
 # CORS middleware
 app.add_middleware(
