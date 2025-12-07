@@ -1,7 +1,7 @@
 """
 Enhanced RL-powered assessment endpoints
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional, Tuple
 import json
@@ -72,6 +72,135 @@ DEFAULT_ACTION_WEIGHTS = {
     "no_hint": [0.05] * len(FEATURE_NAMES),
 }
 
+# Available coding problems for Grok to choose from
+CODING_PROBLEMS = [
+    {
+        "id": "two-sum",
+        "title": "Two Sum",
+        "difficulty": "easy",
+        "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+        "starterCode": {
+            "python": "def two_sum(nums, target):\n    # Write your solution here\n    pass",
+            "javascript": "function twoSum(nums, target) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "[2,7,11,15], 9", "output": "[0,1]"},
+            {"input": "[3,2,4], 6", "output": "[1,2]"},
+            {"input": "[3,3], 6", "output": "[0,1]"},
+        ],
+        "tags": ["arrays", "hash-table", "basic"],
+    },
+    {
+        "id": "reverse-string",
+        "title": "Reverse String",
+        "difficulty": "easy",
+        "description": "Write a function that reverses a string. The input string is given as an array of characters.",
+        "starterCode": {
+            "python": "def reverse_string(s):\n    # Write your solution here\n    pass",
+            "javascript": "function reverseString(s) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "['h','e','l','l','o']", "output": "['o','l','l','e','h']"},
+            {"input": "['H','a','n','n','a','h']", "output": "['h','a','n','n','a','H']"},
+        ],
+        "tags": ["strings", "two-pointers", "basic"],
+    },
+    {
+        "id": "valid-palindrome",
+        "title": "Valid Palindrome",
+        "difficulty": "easy",
+        "description": "Given a string s, determine if it is a palindrome, considering only alphanumeric characters and ignoring cases.",
+        "starterCode": {
+            "python": "def is_palindrome(s):\n    # Write your solution here\n    pass",
+            "javascript": "function isPalindrome(s) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "'A man, a plan, a canal: Panama'", "output": "true"},
+            {"input": "'race a car'", "output": "false"},
+            {"input": "' '", "output": "true"},
+        ],
+        "tags": ["strings", "two-pointers"],
+    },
+    {
+        "id": "binary-search",
+        "title": "Binary Search",
+        "difficulty": "medium",
+        "description": "Given an array of integers nums which is sorted in ascending order, and an integer target, write a function to search target in nums. If target exists, return its index. Otherwise, return -1.",
+        "starterCode": {
+            "python": "def binary_search(nums, target):\n    # Write your solution here\n    pass",
+            "javascript": "function binarySearch(nums, target) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "[-1,0,3,5,9,12], 9", "output": "4"},
+            {"input": "[-1,0,3,5,9,12], 2", "output": "-1"},
+        ],
+        "tags": ["algorithms", "binary-search", "intermediate"],
+    },
+    {
+        "id": "merge-sorted-arrays",
+        "title": "Merge Two Sorted Arrays",
+        "difficulty": "medium",
+        "description": "You are given two integer arrays nums1 and nums2, sorted in non-decreasing order. Merge nums2 into nums1 as one sorted array.",
+        "starterCode": {
+            "python": "def merge(nums1, m, nums2, n):\n    # Write your solution here\n    pass",
+            "javascript": "function merge(nums1, m, nums2, n) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "[1,2,3,0,0,0], 3, [2,5,6], 3", "output": "[1,2,2,3,5,6]"},
+            {"input": "[1], 1, [], 0", "output": "[1]"},
+        ],
+        "tags": ["arrays", "two-pointers", "sorting"],
+    },
+    {
+        "id": "longest-substring",
+        "title": "Longest Substring Without Repeating Characters",
+        "difficulty": "medium",
+        "description": "Given a string s, find the length of the longest substring without repeating characters.",
+        "starterCode": {
+            "python": "def length_of_longest_substring(s):\n    # Write your solution here\n    pass",
+            "javascript": "function lengthOfLongestSubstring(s) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "'abcabcbb'", "output": "3"},
+            {"input": "'bbbbb'", "output": "1"},
+            {"input": "'pwwkew'", "output": "3"},
+        ],
+        "tags": ["strings", "hash-table", "sliding-window"],
+    },
+    {
+        "id": "valid-parentheses",
+        "title": "Valid Parentheses",
+        "difficulty": "medium",
+        "description": "Given a string s containing just the characters '(', ')', '{', '}', '[' and ']', determine if the input string is valid. An input string is valid if brackets are properly matched.",
+        "starterCode": {
+            "python": "def is_valid(s):\n    # Write your solution here\n    pass",
+            "javascript": "function isValid(s) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "'()'", "output": "true"},
+            {"input": "'()[]{}'", "output": "true"},
+            {"input": "'(]'", "output": "false"},
+        ],
+        "tags": ["strings", "stack", "data-structures"],
+    },
+    {
+        "id": "max-subarray",
+        "title": "Maximum Subarray",
+        "difficulty": "hard",
+        "description": "Given an integer array nums, find the contiguous subarray (containing at least one number) which has the largest sum and return its sum.",
+        "starterCode": {
+            "python": "def max_subarray(nums):\n    # Write your solution here\n    pass",
+            "javascript": "function maxSubArray(nums) {\n    // Write your solution here\n}",
+        },
+        "testCases": [
+            {"input": "[-2,1,-3,4,-1,2,1,-5,4]", "output": "6"},
+            {"input": "[1]", "output": "1"},
+            {"input": "[5,4,-1,7,8]", "output": "23"},
+        ],
+        "tags": ["arrays", "dynamic-programming", "advanced"],
+    },
+]
+
 
 class AdaptiveHintRequest(BaseModel):
     code: str
@@ -115,6 +244,9 @@ class CodeExecutionRequest(BaseModel):
 
 class RLAssessmentSubmission(BaseModel):
     candidateId: str
+    candidateName: Optional[str] = None
+    candidateEmail: Optional[str] = None
+    contactEmail: Optional[str] = None
     problemId: str
     problemTitle: str
     problemDescription: str
@@ -127,6 +259,9 @@ class RLAssessmentSubmission(BaseModel):
     executionAttempts: List[Dict[str, Any]]
     rlSignals: List[Dict[str, Any]]
     elapsedTime: int
+    codeSnapshots: Optional[List[Dict[str, Any]]] = []
+    analyticsData: Optional[Dict[str, Any]] = {}
+    challengeTodos: Optional[List[Dict[str, Any]]] = []
 
 
 class RLSessionStartRequest(BaseModel):
@@ -527,6 +662,111 @@ Respond ONLY with JSON:
         "followUpQuestion": "What test would prove the current fix works for edge cases?",
         "confidence": 0.35,
     }
+
+
+@router.post("/analyze-resume")
+async def analyze_resume(
+    name: str = Form(...),
+    email: str = Form(...),
+    contactEmail: str = Form(...),
+    resume: UploadFile = File(...)
+):
+    """
+    Analyze candidate's resume using Grok AI to recommend the best coding problem.
+    Returns the recommended problem with personalized assessment.
+    """
+    try:
+        # Read resume content
+        resume_content = await resume.read()
+        resume_text = resume_content.decode('utf-8', errors='ignore')
+
+        # Truncate if too long (keep first 4000 chars to stay within token limits)
+        if len(resume_text) > 4000:
+            resume_text = resume_text[:4000] + "...\n[Resume truncated for analysis]"
+
+        # Create problem list for Grok
+        problem_list = "\n".join([
+            f"{i+1}. {p['title']} ({p['difficulty']}) - {p['description'][:100]}... Tags: {', '.join(p['tags'])}"
+            for i, p in enumerate(CODING_PROBLEMS)
+        ])
+
+        # Ask Grok to analyze and recommend
+        analysis_prompt = f"""You are an expert technical recruiter analyzing a candidate's resume to recommend the most suitable coding challenge.
+
+Candidate Name: {name}
+Resume:
+{resume_text}
+
+Available Coding Problems:
+{problem_list}
+
+Analyze the candidate's background, skills, and experience level. Then recommend the MOST APPROPRIATE problem from the list above.
+
+Consider:
+1. Their apparent skill level (junior, mid, senior)
+2. Programming languages they know
+3. Problem-solving domains they've worked in (algorithms, data structures, systems, etc.)
+4. Balance between challenging them and setting them up for success
+
+Respond in JSON format:
+{{
+  "recommendedProblemIndex": <0-{len(CODING_PROBLEMS)-1}>,
+  "reasoning": "<2-3 sentences explaining why this problem is ideal for this candidate>",
+  "skillLevel": "<junior|mid|senior>",
+  "keySkills": ["skill1", "skill2", "skill3"]
+}}"""
+
+        grok_response = await call_grok_api(
+            [{"role": "user", "content": analysis_prompt}],
+            temperature=0.5
+        )
+
+        # Parse Grok's response
+        json_start = grok_response.find("{")
+        json_end = grok_response.rfind("}") + 1
+
+        if json_start != -1 and json_end > json_start:
+            analysis = json.loads(grok_response[json_start:json_end])
+            recommended_index = analysis.get("recommendedProblemIndex", 0)
+
+            # Ensure index is valid
+            if 0 <= recommended_index < len(CODING_PROBLEMS):
+                recommended_problem = CODING_PROBLEMS[recommended_index]
+            else:
+                # Default to first problem if index is invalid
+                recommended_problem = CODING_PROBLEMS[0]
+                analysis["reasoning"] = "Selected a balanced problem suitable for most skill levels."
+
+            return {
+                "success": True,
+                "candidateName": name,
+                "candidateEmail": email,
+                "contactEmail": contactEmail,
+                "recommendedProblem": recommended_problem,
+                "analysis": analysis,
+            }
+        else:
+            # Fallback: Use a medium difficulty problem
+            default_problem = CODING_PROBLEMS[3]  # Binary Search
+            return {
+                "success": True,
+                "candidateName": name,
+                "candidateEmail": email,
+                "contactEmail": contactEmail,
+                "recommendedProblem": default_problem,
+                "analysis": {
+                    "reasoning": "Selected a well-balanced problem suitable for most candidates.",
+                    "skillLevel": "mid",
+                    "keySkills": ["algorithms", "problem-solving"]
+                },
+            }
+
+    except Exception as e:
+        print(f"Error analyzing resume: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to analyze resume: {str(e)}"
+        )
 
 
 @router.post("/session/start")
@@ -1159,12 +1399,152 @@ async def execute_code(request: CodeExecutionRequest):
     }
 
 
+def calculate_code_score(execution_attempts: List[Dict[str, Any]]) -> float:
+    """
+    Calculate code score (0-5) based on test cases passed.
+    Uses the most recent execution attempt.
+    """
+    if not execution_attempts:
+        return 0.0
+
+    # Get the most recent execution attempt
+    latest = execution_attempts[-1]
+
+    # Check if there are test results
+    if 'results' in latest and latest['results']:
+        passed = sum(1 for result in latest['results'] if result.get('passed', False))
+        total = len(latest['results'])
+        if total > 0:
+            return round((passed / total) * 5, 1)
+
+    # If execution was successful but no test results, give partial credit
+    if latest.get('success', False):
+        return 2.5
+
+    return 0.0
+
+
+async def evaluate_single_response(question: str, response: str) -> Dict[str, Any]:
+    """
+    Evaluate a single Q&A response using Grok.
+    Returns feedback, score, and quality rating.
+    """
+    evaluation_prompt = f"""You are evaluating a candidate's response to a technical question during a coding assessment.
+
+Question: {question}
+Candidate's Response: {response}
+
+Evaluate this response on:
+1. Technical accuracy
+2. Clarity of explanation
+3. Depth of understanding
+4. Communication effectiveness
+
+Provide:
+- A score from 0-5 (where 5 is excellent, 3 is adequate, 0 is poor)
+- Brief feedback (2-3 sentences max)
+- Quality rating: "excellent", "good", "adequate", "weak", or "poor"
+
+Respond in JSON format:
+{{
+  "score": <number 0-5>,
+  "feedback": "<brief feedback>",
+  "quality": "<excellent|good|adequate|weak|poor>"
+}}"""
+
+    try:
+        grok_response = await call_grok_api(
+            [{"role": "user", "content": evaluation_prompt}],
+            temperature=0.3
+        )
+
+        # Extract JSON from response
+        json_start = grok_response.find("{")
+        json_end = grok_response.rfind("}") + 1
+        if json_start != -1 and json_end > json_start:
+            json_str = grok_response[json_start:json_end]
+            evaluation = json.loads(json_str)
+            return {
+                "score": float(evaluation.get("score", 3.0)),
+                "feedback": evaluation.get("feedback", "No feedback available"),
+                "quality": evaluation.get("quality", "adequate")
+            }
+    except Exception as e:
+        print(f"Error evaluating single response with Grok: {e}")
+
+    # Fallback evaluation
+    return {
+        "score": 3.0,
+        "feedback": "Response recorded but detailed evaluation unavailable.",
+        "quality": "adequate"
+    }
+
+
+async def calculate_response_score(challenge_todos: List[Dict[str, Any]]) -> Tuple[float, List[Dict[str, Any]]]:
+    """
+    Calculate response score (0-5) based on Grok evaluation of challenge responses.
+    Returns overall score and evaluated responses with individual feedback.
+    """
+    if not challenge_todos or len(challenge_todos) == 0:
+        return 3.0, []  # Default score if no challenges
+
+    # Evaluate each completed response
+    evaluated_responses = []
+    total_score = 0
+    count = 0
+
+    for todo in challenge_todos:
+        if todo.get('completed') and todo.get('response'):
+            # Get Grok evaluation for this response
+            evaluation = await evaluate_single_response(
+                todo.get('question', ''),
+                todo.get('response', '')
+            )
+
+            evaluated_responses.append({
+                "question": todo.get('question', ''),
+                "response": todo.get('response', ''),
+                "timestamp": todo.get('timestamp', 0),
+                "score": evaluation["score"],
+                "feedback": evaluation["feedback"],
+                "quality": evaluation["quality"]
+            })
+
+            total_score += evaluation["score"]
+            count += 1
+
+    if count == 0:
+        return 2.0, []  # Lower score if challenges exist but weren't answered
+
+    # Calculate average score
+    avg_score = total_score / count
+    return round(avg_score, 1), evaluated_responses
+
+
 @router.post("/submit-rl-assessment")
 async def submit_rl_assessment(submission: RLAssessmentSubmission):
     """
     Submit complete RL-enhanced assessment with all tracking data.
     This data is gold for training the RL model.
     """
+
+    # Calculate new scoring metrics
+    code_score = calculate_code_score(submission.executionAttempts)
+    response_score, evaluated_responses = await calculate_response_score(submission.challengeTodos)
+
+    # Default weight: 60% code, 40% response (can be adjusted later)
+    code_weight = 0.6
+    final_score = code_weight * code_score + (1 - code_weight) * response_score
+
+    # Determine recommendation based on final score
+    if final_score >= 4.5:
+        recommendation = "strong_hire"
+    elif final_score >= 3.5:
+        recommendation = "hire"
+    elif final_score >= 2.5:
+        recommendation = "maybe"
+    else:
+        recommendation = "no_hire"
 
     # Generate comprehensive summary using all RL data
     summary_prompt = f"""You are evaluating a candidate using an RL-powered interactive assessment system. Provide a comprehensive technical evaluation.
@@ -1311,10 +1691,29 @@ Respond ONLY with valid JSON, no other text."""
                 "detailedFeedback": "Full evaluation pending. Candidate completed the assessment and used the interactive features."
             }
 
-        # Store complete RL assessment
+        # Extract and flatten Grok evaluation fields for frontend
+        overall_rating = summary.get("coreSummary", {}).get("overallRating", 0)
+        strengths = summary.get("strengthsWeaknesses", {}).get("topStrengths", [])
+        weaknesses = summary.get("strengthsWeaknesses", {}).get("topConcerns", [])
+        rl_insights = summary.get("detailedFeedback", "AI evaluation completed.")
+
+        # Generate learning trajectory from RL signals
+        learning_trajectory = "Candidate showed consistent progress throughout the assessment."
+        if submission.rlSignals and len(submission.rlSignals) > 0:
+            # Analyze RL signals to describe learning trajectory
+            hint_signals = [s for s in submission.rlSignals if s.get("signal_type") == "hint_request"]
+            if len(hint_signals) > 2:
+                learning_trajectory = "Candidate actively sought guidance and adapted their approach based on feedback."
+            elif len(hint_signals) == 0:
+                learning_trajectory = "Candidate demonstrated strong independent problem-solving abilities."
+
+        # Store complete RL assessment with new scoring
         assessment_id = f"rl_assess_{datetime.now().timestamp()}"
         rl_state_db[assessment_id] = {
             "candidateId": submission.candidateId,
+            "candidateName": submission.candidateName or "Anonymous Candidate",
+            "candidateEmail": submission.candidateEmail or submission.candidateId,
+            "contactEmail": submission.contactEmail or submission.candidateEmail or submission.candidateId,
             "problemId": submission.problemId,
             "problemTitle": submission.problemTitle,
             "problemDescription": submission.problemDescription,
@@ -1329,6 +1728,22 @@ Respond ONLY with valid JSON, no other text."""
             "executionAttempts": submission.executionAttempts,
             "rlSignals": submission.rlSignals,
             "evaluation": summary,
+            "codeSnapshots": submission.codeSnapshots,
+            "analyticsData": submission.analyticsData,
+            "evaluatedResponses": evaluated_responses,  # Store Grok-evaluated responses
+            # Use calculated scores
+            "codeScore": code_score,
+            "responseScore": response_score,
+            "finalScore": final_score,
+            "recommendation": recommendation,
+            # Flattened fields for frontend
+            "overallRating": overall_rating,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "rlInsights": rl_insights,
+            "learningTrajectory": learning_trajectory,
+            # Keep AI evaluation for additional insights
+            **summary,
         }
 
         # Save RL training data
@@ -1350,13 +1765,116 @@ Respond ONLY with valid JSON, no other text."""
         raise HTTPException(status_code=500, detail=f"Failed to submit assessment: {str(e)}")
 
 
+# Random name generation for anonymous assessments
+FIRST_NAMES = ["Sarah", "Marcus", "David", "Emily", "Alexandra", "James", "Maria", "Chen", "Rodriguez", "Kim"]
+LAST_NAMES = ["Chen", "Johnson", "Kim", "Rodriguez", "Peters", "Singh", "Lee", "Garcia", "Wang", "Brown"]
+EMAIL_DOMAINS = ["example.com", "techcorp.io", "startup.co", "consulting.com", "email.com"]
+
+def generate_random_name(assessment_id: str) -> dict:
+    """Generate consistent random name based on assessment ID"""
+    # Use assessment ID as seed for consistency
+    random.seed(assessment_id)
+    first_name = random.choice(FIRST_NAMES)
+    last_name = random.choice(LAST_NAMES)
+    email = f"{first_name.lower()}.{last_name.lower()}@{random.choice(EMAIL_DOMAINS)}"
+    random.seed()  # Reset seed
+    return {
+        "name": f"{first_name} {last_name}",
+        "email": email
+    }
+
+
+@router.get("/assessments/list")
+async def list_assessments():
+    """List all assessments for recruiter dashboard"""
+    assessments = []
+
+    for assessment_id, data in rl_state_db.items():
+        # Use stored candidate info, or generate random for legacy assessments
+        candidate_name = data.get("candidateName")
+        candidate_email = data.get("candidateEmail")
+
+        if not candidate_name or not candidate_email:
+            # Legacy: generate random name for old assessments
+            candidate_info = generate_random_name(assessment_id)
+            candidate_name = candidate_info["name"]
+            candidate_email = candidate_info["email"]
+
+        # Use stored scores (0-5 scale), or fall back to old calculation for legacy data
+        code_score = data.get("codeScore")
+        if code_score is None:
+            # Legacy: calculate from code complexity
+            code_score = data.get("progressMetrics", {}).get("codeComplexity", 50) / 10
+
+        response_score = data.get("responseScore")
+        if response_score is None:
+            # Legacy: calculate from monitoring events
+            monitoring_events = data.get("monitoringEvents", [])
+            response_score = min(10, len([e for e in monitoring_events if e.get("type") == "response"]) + 5)
+
+        final_score = data.get("finalScore")
+        if final_score is None:
+            # Legacy: use AI rating
+            final_score = data.get("overallRating", 5)
+
+        hints_used = len(data.get("hintsUsed", []))
+        challenge_todos = data.get("challengeTodos", [])
+        questions_answered = len([t for t in challenge_todos if t.get("completed")])
+
+        assessments.append({
+            "id": assessment_id,
+            "name": candidate_name,
+            "email": candidate_email,
+            "problem": data.get("problemId", "Coding Challenge"),
+            "codeScore": round(code_score, 1),  # 0-5 scale
+            "responseScore": round(response_score, 1),  # 0-5 scale
+            "overallScore": round(final_score * 20, 1),  # Convert 0-5 to 0-100 scale for display
+            "recommendation": data.get("recommendation", "maybe"),
+            "timestamp": data.get("endTime", 0),
+            "hintsUsed": hints_used,
+            "questionsAnswered": questions_answered,
+            "elapsedTime": int((data.get("endTime", 0) - data.get("startTime", 0)) / 1000),
+        })
+
+    # Sort by timestamp (most recent first)
+    assessments.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    return {"assessments": assessments}
+
+
 @router.get("/assessment/{assessment_id}")
 async def get_rl_assessment(assessment_id: str):
     """Get RL assessment summary for recruiter dashboard"""
     if assessment_id not in rl_state_db:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    return rl_state_db[assessment_id]
+    assessment_data = rl_state_db[assessment_id].copy()
+
+    # Ensure candidate info exists (for legacy assessments, generate random)
+    if not assessment_data.get("candidateName") or not assessment_data.get("candidateEmail"):
+        candidate_info = generate_random_name(assessment_id)
+        assessment_data["candidateName"] = candidate_info["name"]
+        assessment_data["candidateEmail"] = candidate_info["email"]
+
+    # Ensure flattened AI evaluation fields exist (for legacy assessments)
+    if "overallRating" not in assessment_data and "evaluation" in assessment_data:
+        evaluation = assessment_data.get("evaluation", {})
+        assessment_data["overallRating"] = evaluation.get("coreSummary", {}).get("overallRating", 0)
+        assessment_data["strengths"] = evaluation.get("strengthsWeaknesses", {}).get("topStrengths", [])
+        assessment_data["weaknesses"] = evaluation.get("strengthsWeaknesses", {}).get("topConcerns", [])
+        assessment_data["rlInsights"] = evaluation.get("detailedFeedback", "AI evaluation completed.")
+
+        # Generate learning trajectory for legacy assessments
+        learning_trajectory = "Candidate showed consistent progress throughout the assessment."
+        if assessment_data.get("rlSignals") and len(assessment_data.get("rlSignals", [])) > 0:
+            hint_signals = [s for s in assessment_data["rlSignals"] if s.get("signal_type") == "hint_request"]
+            if len(hint_signals) > 2:
+                learning_trajectory = "Candidate actively sought guidance and adapted their approach based on feedback."
+            elif len(hint_signals) == 0:
+                learning_trajectory = "Candidate demonstrated strong independent problem-solving abilities."
+        assessment_data["learningTrajectory"] = learning_trajectory
+
+    return assessment_data
 
 
 @router.get("/rl-training-stats")

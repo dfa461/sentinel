@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
   Code2,
   Brain,
@@ -19,9 +20,25 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { CandidateInfoModal } from '../components/CandidateInfoModal';
+import type { CandidateInfo } from '../components/CandidateInfoModal';
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
+
+  const handleStartAssessment = () => {
+    setShowModal(true);
+  };
+
+  const handleModalSubmit = (candidateInfo: CandidateInfo) => {
+    // Navigate to assessment with candidate info
+    navigate('/interactive', {
+      state: {
+        candidateInfo,
+      },
+    });
+  };
 
   const features = [
     {
@@ -166,7 +183,7 @@ export function LandingPage() {
             className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-20"
           >
             <button
-              onClick={() => navigate('/interactive')}
+              onClick={handleStartAssessment}
               className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center gap-3"
             >
               <Code2 className="w-6 h-6" />
@@ -449,7 +466,7 @@ export function LandingPage() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
-                  onClick={() => navigate('/interactive')}
+                  onClick={handleStartAssessment}
                   className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-xl font-semibold text-lg transition-all shadow-2xl hover:shadow-blue-500/50 flex items-center justify-center gap-3"
                 >
                   <Users className="w-6 h-6" />
@@ -491,6 +508,13 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Candidate Info Modal */}
+      <CandidateInfoModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleModalSubmit}
+      />
     </div>
   );
 }

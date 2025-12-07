@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Code2, Send, Activity, CheckCircle2, Circle, ChevronDown } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { CodeEditor } from '../components/CodeEditor';
@@ -7,10 +8,8 @@ import { HintToast } from '../components/HintToast';
 import { InterventionModal } from '../components/InterventionModal';
 import { HintSystem } from '../components/HintSystem';
 import { CodeExecutionPanel } from '../components/CodeExecutionPanel';
-import { debounce } from '../lib/utils';
 import type { Problem, Intervention } from '../types';
 import type {
-  AssessmentState,
   ProgressMetrics,
   AdaptiveHint,
   CodeExecutionResult,
@@ -20,14 +19,20 @@ import type {
 } from '../types/monitoring';
 import { TOP_K_FREQUENT_ELEMENTS } from '../data/problems';
 import { cn } from '../lib/utils';
+import type { CandidateInfo } from '../components/CandidateInfoModal';
 
-const API_BASE = 'http://localhost:8000';
 const RL_API_BASE = 'http://localhost:8000/api/rl';
 
 export function InteractiveAssessmentPage() {
-  const [problem] = useState<Problem>(TOP_K_FREQUENT_ELEMENTS);
+  const location = useLocation();
+  const candidateInfo = (location.state as { candidateInfo?: CandidateInfo })?.candidateInfo;
+
+  // Use default problem (can be randomized if desired)
+  const initialProblem = TOP_K_FREQUENT_ELEMENTS;
+
+  const [problem] = useState<Problem>(initialProblem);
   const [language, setLanguage] = useState<'python' | 'java'>('python');
-  const [code, setCode] = useState(TOP_K_FREQUENT_ELEMENTS.starterCode.python);
+  const [code, setCode] = useState(initialProblem.starterCode.python || '');
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Original intervention states
@@ -64,11 +69,22 @@ export function InteractiveAssessmentPage() {
   const [challengeTodos, setChallengeTodos] = useState<ChallengeTodo[]>([]);
   const [isTodoDropdownOpen, setIsTodoDropdownOpen] = useState(false);
 
+  // Code snapshots tracking
+  const [codeSnapshots, setCodeSnapshots] = useState<Array<{ timestamp: number; code: string; label: string }>>([]);
+
+  // Analytics tracking
+  const [analyticsData, setAnalyticsData] = useState({
+    charactersTyped: 0,
+    deletions: 0,
+    keystrokes: 0,
+  });
+
   // Refs for tracking
   const startTimeRef = useRef(Date.now());
   const monitoringEventsRef = useRef<MonitoringEvent[]>(monitoringEvents);
   const lastChallengeCodeRef = useRef<string>(''); // Track code snapshot from last challenge
   const lastChallengeTimeRef = useRef<number>(0); // Track when last challenge was generated
+  const previousCodeRef = useRef<string>(''); // Track previous code for analytics
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -97,9 +113,52 @@ export function InteractiveAssessmentPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Code snapshot tracking - capture every 10 seconds
+  useEffect(() => {
+    const snapshotInterval = setInterval(() => {
+      const currentTime = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const minutes = Math.floor(currentTime / 60);
+      const seconds = currentTime % 60;
+      const label = `Snapshot at ${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+      setCodeSnapshots((prev) => [
+        ...prev,
+        {
+          timestamp: Date.now(),
+          code: code,
+          label,
+          linesOfCode: code.split('\n').length,
+        },
+      ]);
+    }, 10000); // Every 10 seconds
+
+    return () => clearInterval(snapshotInterval);
+  }, [code]);
+
 
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || '';
+    const prevCode = previousCodeRef.current;
+
+    // Track analytics
+    const lengthDiff = newCode.length - prevCode.length;
+    if (lengthDiff > 0) {
+      // Characters added
+      setAnalyticsData(prev => ({
+        ...prev,
+        charactersTyped: prev.charactersTyped + lengthDiff,
+        keystrokes: prev.keystrokes + lengthDiff,
+      }));
+    } else if (lengthDiff < 0) {
+      // Characters deleted
+      setAnalyticsData(prev => ({
+        ...prev,
+        deletions: prev.deletions + Math.abs(lengthDiff),
+        keystrokes: prev.keystrokes + Math.abs(lengthDiff),
+      }));
+    }
+
+    previousCodeRef.current = newCode;
     setCode(newCode);
 
     // Update progress metrics
@@ -356,11 +415,21 @@ export function InteractiveAssessmentPage() {
   const handleSubmit = async () => {
     // Submit assessment with all RL data including challenge TODOs
     try {
+      // Add final snapshot if not already captured
+      const finalSnapshot = {
+        timestamp: Date.now(),
+        code: code,
+        label: 'Final Submission',
+      };
+
       const response = await fetch(`${RL_API_BASE}/submit-rl-assessment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          candidateId: 'demo-candidate',
+          candidateId: candidateInfo?.email || 'demo-candidate',
+          candidateName: candidateInfo?.name || 'Demo Candidate',
+          candidateEmail: candidateInfo?.email || 'demo@example.com',
+          contactEmail: candidateInfo?.contactEmail || 'demo@example.com',
           problemId: problem.id,
           problemTitle: problem.title,
           problemDescription: problem.description,
@@ -369,10 +438,17 @@ export function InteractiveAssessmentPage() {
           progressMetrics,
           monitoringEvents,
           hintsUsed,
-          challengeTodos, // Include challenge questions and responses
           executionAttempts: lastExecutionResult ? [lastExecutionResult] : [],
           rlSignals,
           elapsedTime,
+          codeSnapshots: [...codeSnapshots, finalSnapshot],
+          analyticsData,
+          challengeTodos: challengeTodos.map(todo => ({
+            question: todo.question,
+            response: todo.response || '',
+            timestamp: todo.timestamp,
+            completed: todo.completed,
+          })),
         }),
       });
 
